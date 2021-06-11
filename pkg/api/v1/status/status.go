@@ -19,7 +19,7 @@ type Writer interface {
 // Status is a generic status for any Custom Resource managed by Atlas Operator
 type Status interface {
 	GetConditions() []Condition
-
+	GetCondition(condType ConditionType) *Condition
 	GetObservedGeneration() int64
 }
 
@@ -37,6 +37,15 @@ type Common struct {
 
 func (c Common) GetConditions() []Condition {
 	return c.Conditions
+}
+
+func (c Common) GetCondition(condType ConditionType) *Condition {
+	for _, cond := range c.Conditions {
+		if cond.Type == condType {
+			return &cond
+		}
+	}
+	return nil
 }
 
 func (c Common) GetObservedGeneration() int64 {

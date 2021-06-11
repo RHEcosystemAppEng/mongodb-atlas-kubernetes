@@ -36,3 +36,19 @@ const (
 	DatabaseUserInvalidSpec                 ConditionReason = "DatabaseUserInvalidSpec"
 	DatabaseUserExpired                     ConditionReason = "DatabaseUserExpired"
 )
+
+// MongoDBAtlasInventory reasons
+const (
+	MongoDBAtlasInventoryClusterListFailed ConditionReason = "ClusterListFailed"
+	MongoDBAtlasInventoryProjectListFailed ConditionReason = "ProjectListFailed"
+)
+
+// MongoDBAtlasConnection reasons
+const (
+	MongoDBAtlasConnectionReady               ConditionReason = "Ready"
+	MongoDBAtlasConnectionAtlasUnreachable    ConditionReason = "Unreachable"
+	MongoDBAtlasConnectionInventoryNotReady   ConditionReason = "InventoryNotReadt"
+	MongoDBAtlasConnectionNotFound            ConditionReason = "NotFound"
+	MongoDBAtlasConnectionBackendError        ConditionReason = "BackendError"
+	MongoDBAtlasConnectionAuthenticationError ConditionReason = "AuthenticationError"
+)

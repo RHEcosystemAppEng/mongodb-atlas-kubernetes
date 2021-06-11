@@ -26,6 +26,7 @@ import (
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -33,12 +34,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	ctrzap "sigs.k8s.io/controller-runtime/pkg/log/zap"
 
+	"github.com/mongodb/mongodb-atlas-kubernetes/pkg/api/dbaas"
 	mdbv1 "github.com/mongodb/mongodb-atlas-kubernetes/pkg/api/v1"
 	"github.com/mongodb/mongodb-atlas-kubernetes/pkg/controller/atlas"
 	"github.com/mongodb/mongodb-atlas-kubernetes/pkg/controller/atlascluster"
+	"github.com/mongodb/mongodb-atlas-kubernetes/pkg/controller/atlasconnection"
 	"github.com/mongodb/mongodb-atlas-kubernetes/pkg/controller/atlasdatabaseuser"
+	"github.com/mongodb/mongodb-atlas-kubernetes/pkg/controller/atlasinventory"
 	"github.com/mongodb/mongodb-atlas-kubernetes/pkg/controller/atlasproject"
-	"github.com/mongodb/mongodb-atlas-kubernetes/pkg/controller/atlasservice"
 	"github.com/mongodb/mongodb-atlas-kubernetes/pkg/controller/watch"
 	"github.com/mongodb/mongodb-atlas-kubernetes/pkg/util/kube"
 	// +kubebuilder:scaffold:imports
@@ -56,6 +59,9 @@ func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
 	utilruntime.Must(mdbv1.AddToScheme(scheme))
+
+	utilruntime.Must(dbaas.DBaaSAddToScheme(scheme))
+
 	// +kubebuilder:scaffold:scheme
 
 	atlas.ProductVersion = version
@@ -90,16 +96,36 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&atlasservice.AtlasServiceReconciler{
+	if err = (&atlasinventory.MongoDBAtlasInventoryReconciler{
 		Client:          mgr.GetClient(),
-		Log:             logger.Named("controllers").Named("AtlasServices").Sugar(),
+		Log:             logger.Named("controllers").Named("MongoDBAtlasInventory").Sugar(),
 		Scheme:          mgr.GetScheme(),
 		AtlasDomain:     config.AtlasDomain,
 		ResourceWatcher: watch.NewResourceWatcher(),
 		GlobalAPISecret: config.GlobalAPISecret,
-		EventRecorder:   mgr.GetEventRecorderFor("AtlasService"),
+		EventRecorder:   mgr.GetEventRecorderFor("MongoDBAtlasInventory"),
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "AtlasService")
+		setupLog.Error(err, "unable to create controller", "controller", "MongoDBAtlasInventory")
+		os.Exit(1)
+	}
+
+	cfg := mgr.GetConfig()
+	clientset, err := kubernetes.NewForConfig(cfg)
+	if err != nil {
+		setupLog.Error(err, "unable to create clientset")
+		os.Exit(1)
+	}
+	if err = (&atlasconnection.MongoDBAtlasConnectionReconciler{
+		Client:          mgr.GetClient(),
+		Clientset:       clientset,
+		Log:             logger.Named("controllers").Named("MongoDBAtlasConnection").Sugar(),
+		Scheme:          mgr.GetScheme(),
+		AtlasDomain:     config.AtlasDomain,
+		ResourceWatcher: watch.NewResourceWatcher(),
+		GlobalAPISecret: config.GlobalAPISecret,
+		EventRecorder:   mgr.GetEventRecorderFor("MongoDBAtlasConnection"),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "MongoDBAtlasConnection")
 		os.Exit(1)
 	}
 

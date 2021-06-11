@@ -13,24 +13,21 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.4.1
   creationTimestamp: null
-  name: atlasservices.atlas.mongodb.com
+  name: mongodbatlasconnections.dbaas.redhat.com
 spec:
-  group: atlas.mongodb.com
+  group: dbaas.redhat.com
   names:
-    kind: AtlasService
-    listKind: AtlasServiceList
-    plural: atlasservices
-    singular: atlasservice
+    kind: MongoDBAtlasConnection
+    listKind: MongoDBAtlasConnectionList
+    plural: mongodbatlasconnections
+    singular: mongodbatlasconnection
   scope: Namespaced
   versions:
-  - additionalPrinterColumns:
-    - jsonPath: .spec.name
-      name: Name
-      type: string
-    name: v1
+  - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: AtlasService is the Schema for the AtlasServices API
+        description: MongoDBAtlasConnection is the Schema for the MongoDBAtlasConnections
+          API
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -45,30 +42,27 @@ spec:
           metadata:
             type: object
           spec:
-            description: AtlasServiceSpec defines the desired state of Project in
-              Atlas
+            description: MongoDBAtlasConnectionSpec defines the desired state of MongoDBAtlasConnection
             properties:
-              connectionSecretRef:
-                description: ConnectionSecret is the name of the Kubernetes Secret
-                  which contains the information about the way to connect to Atlas
-                  (organization ID, API keys). The default Operator connection configuration
-                  will be used if not provided.
+              Connection:
+                description: A reference to the relevant MongoDBAtlasConnection CR
                 properties:
                   name:
-                    description: Name is the name of the Kubernetes Resource
+                    description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                      TODO: Add other useful fields. apiVersion, kind, uid?'
                     type: string
-                required:
-                - name
                 type: object
-              name:
-                description: Name is the name of the Project that is created in Atlas
-                  by the Operator if it doesn't exist yet.
+              instanceID:
+                description: The ID of the instance to connect to, as seen in the
+                  Status of the referenced MongoDBAtlasConnection
                 type: string
             required:
-            - name
+            - Connection
+            - instanceID
             type: object
           status:
-            description: AtlasServiceStatus defines the observed state of AtlasService
+            description: MongoDBAtlasConnectionStatus defines the observed state of
+              MongoDBAtlasConnection
             properties:
               conditions:
                 description: Conditions is the list of statuses showing the current
@@ -100,6 +94,26 @@ spec:
                   - type
                   type: object
                 type: array
+              connectionInfo:
+                description: Any other provider-specific information related to this
+                  connection
+                properties:
+                  connectionString:
+                    description: ConnectionString is for your applications use to
+                      connect to this cluster.
+                    type: string
+                type: object
+              credentialsRef:
+                description: Secret holding username and password
+                properties:
+                  name:
+                    description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                      TODO: Add other useful fields. apiVersion, kind, uid?'
+                    type: string
+                type: object
+              host:
+                description: The host for this instance
+                type: string
               observedGeneration:
                 description: ObservedGeneration indicates the generation of the resource
                   specification that the Atlas Operator is aware of. The Atlas Operator
@@ -107,57 +121,187 @@ spec:
                   reconciliation of the resource.
                 format: int64
                 type: integer
-              projects:
-                description: AtlasProjectServiceList is the list of projects associated
-                  with the user
-                items:
-                  description: AtlasProjectService defines the observed state of AtlasProjectService
-                  properties:
-                    clusters:
-                      description: ClusterList is the list of DB clusters associated
-                        with the Atlas project
-                      items:
-                        description: AtlasClusterService defines the observed state
-                          of AtlasClusterService
-                        properties:
-                          conectionString:
-                            description: ConnectionString is the mongodb+srv://<host>
-                              connection URL for the cluster
-                            type: string
-                          id:
-                            description: The ID of the Atlas Project
-                            type: string
-                          instanceSizeName:
-                            description: InstanceSizeName is the db flavor indicating
-                              the instance size
-                            type: string
-                          name:
-                            description: The Name of the Atlas Project
-                            type: string
-                          providerName:
-                            description: ProviderName is the cloud provider name
-                            type: string
-                          regionName:
-                            description: RegionName is the region name
-                            type: string
-                        type: object
-                      type: array
-                    dbUsers:
-                      description: DBUserList is the list of DB users associated with
-                        the Atlas project
-                      items:
-                        type: string
-                      type: array
-                    id:
-                      description: The ID of the Atlas Project
-                      type: string
-                    name:
-                      description: The Name of the Atlas Project
-                      type: string
-                  type: object
-                type: array
             required:
             - conditions
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.4.1
+  creationTimestamp: null
+  name: mongodbatlasinventories.dbaas.redhat.com
+spec:
+  group: dbaas.redhat.com
+  names:
+    kind: MongoDBAtlasInventory
+    listKind: MongoDBAtlasInventoryList
+    plural: mongodbatlasinventories
+    singular: mongodbatlasinventory
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: MongoDBAtlasInventory is the Schema for the MongoDBAtlasInventory
+          API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: MongoDBAtlasInventorySpec defines the desired state of MongoDBAtlasInventory
+            properties:
+              provider:
+                description: The name of the database provider whose instances are
+                  being listed. This must match the provider name specified in the
+                  provider’s operator in its registration ConfigMap.
+                properties:
+                  name:
+                    type: string
+                required:
+                - name
+                type: object
+              providerSpec:
+                description: The properties that will be copied into the provider’s
+                  inventory Spec
+                properties:
+                  credentialsRef:
+                    description: The Secret containing the provider-specific connection
+                      credentials to use with its API endpoint.  The format of the
+                      Secret is specified in the provider’s operator in its registration
+                      ConfigMap (credentials_fields key).  It is recommended to place
+                      the Secret in a namespace with limited accessibility.
+                    properties:
+                      name:
+                        description: The name for object of known type
+                        type: string
+                      namespace:
+                        description: The namespace where object of known type is stored
+                        type: string
+                    type: object
+                required:
+                - credentialsRef
+                type: object
+            required:
+            - provider
+            - providerSpec
+            type: object
+          status:
+            description: MongoDBAtlasInventoryStatus defines the observed state of
+              MongoDBAtlasInventory
+            properties:
+              conditions:
+                description: Conditions is the list of statuses showing the current
+                  state of the Atlas Custom Resource
+                items:
+                  description: Condition describes the state of an Atlas Custom Resource
+                    at a certain point.
+                  properties:
+                    lastTransitionTime:
+                      description: Last time the condition transitioned from one status
+                        to another.
+                      format: date-time
+                      type: string
+                    message:
+                      description: A human readable message indicating details about
+                        the transition.
+                      type: string
+                    reason:
+                      description: The reason for the condition's last transition.
+                      type: string
+                    status:
+                      description: Status of the condition, one of True, False, Unknown.
+                      type: string
+                    type:
+                      description: Type of Atlas Custom Resource condition.
+                      type: string
+                  required:
+                  - status
+                  - type
+                  type: object
+                type: array
+              instances:
+                description: A list of instances returned from querying the DB provider
+                items:
+                  properties:
+                    extraInfo:
+                      description: Any other provider-specific information related
+                        to this instance
+                      properties:
+                        connectionString:
+                          description: ConnectionString is for your applications use
+                            to connect to this cluster.
+                          type: string
+                        instanceSizeName:
+                          type: string
+                        projectID:
+                          type: string
+                        projectName:
+                          type: string
+                        providerName:
+                          type: string
+                        regionName:
+                          type: string
+                      required:
+                      - instanceSizeName
+                      - projectID
+                      - projectName
+                      - providerName
+                      - regionName
+                      type: object
+                    instanceID:
+                      description: A provider-specific identifier for this instance
+                        in the database service.  It may contain one or more pieces
+                        of information used by the provider operator to identify the
+                        instance on the database service.
+                      type: string
+                    name:
+                      description: The name of this instance in the database service
+                      type: string
+                  required:
+                  - instanceID
+                  type: object
+                type: array
+              observedGeneration:
+                description: ObservedGeneration indicates the generation of the resource
+                  specification that the Atlas Operator is aware of. The Atlas Operator
+                  updates this field to the 'metadata.generation' as soon as it starts
+                  reconciliation of the resource.
+                format: int64
+                type: integer
+              provider:
+                description: Provider used by the Service Binding Operator
+                type: string
+              type:
+                description: Type used by the Service Binding Operator - e.g., MongoDB,
+                  Postgres
+                type: string
+            required:
+            - conditions
+            - provider
+            - type
             type: object
         type: object
     served: true
@@ -1160,9 +1304,9 @@ rules:
   - patch
   - update
 - apiGroups:
-  - atlas.mongodb.com
+  - dbaas.redhat.com
   resources:
-  - atlasservices
+  - mongodbatlasconnections
   verbs:
   - create
   - delete
@@ -1172,9 +1316,29 @@ rules:
   - update
   - watch
 - apiGroups:
-  - atlas.mongodb.com
+  - dbaas.redhat.com
   resources:
-  - atlasservices/status
+  - mongodbatlasconnections/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - dbaas.redhat.com
+  resources:
+  - mongodbatlasinventories
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - dbaas.redhat.com
+  resources:
+  - mongodbatlasinventories/status
   verbs:
   - get
   - patch

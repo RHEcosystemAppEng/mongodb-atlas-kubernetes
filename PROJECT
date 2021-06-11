@@ -15,7 +15,17 @@ resources:
   group: atlas
   kind: AtlasDatabaseUser
   version: v1
-version: 3-alpha
+- crdVersion: v1
+  domain: redhat.com
+  group: dbaas
+  kind: MongoDBAtlasConnection
+  version: v1alpha1
+- crdVersion: v1
+  domain: redhat.com
+  group: dbaas
+  kind: MongoDBAtlasInventory
+  version: v1alpha1
+version: "3"
 plugins:
   manifests.sdk.operatorframework.io/v2: {}
   scorecard.sdk.operatorframework.io/v2: {}

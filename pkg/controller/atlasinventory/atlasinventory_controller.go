@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package atlasservice
+package atlasinventory
 
 import (
 	"context"
@@ -29,7 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	mdbv1 "github.com/mongodb/mongodb-atlas-kubernetes/pkg/api/v1"
+	"github.com/mongodb/mongodb-atlas-kubernetes/pkg/api/dbaas"
 	"github.com/mongodb/mongodb-atlas-kubernetes/pkg/api/v1/status"
 	"github.com/mongodb/mongodb-atlas-kubernetes/pkg/controller/atlas"
 	"github.com/mongodb/mongodb-atlas-kubernetes/pkg/controller/customresource"
@@ -38,8 +38,8 @@ import (
 	"github.com/mongodb/mongodb-atlas-kubernetes/pkg/controller/workflow"
 )
 
-// AtlasserviceReconciler reconciles a AtlasService object
-type AtlasServiceReconciler struct {
+// MongoDBAtlasInventoryReconciler reconciles a MongoDBAtlasInventory object
+type MongoDBAtlasInventoryReconciler struct {
 	Client client.Client
 	watch.ResourceWatcher
 	Log             *zap.SugaredLogger
@@ -51,36 +51,36 @@ type AtlasServiceReconciler struct {
 
 // Dev note: duplicate the permissions in both sections below to generate both Role and ClusterRoles
 
-// +kubebuilder:rbac:groups=atlas.mongodb.com,resources=atlasservices,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=atlas.mongodb.com,resources=atlasservices/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=atlas.mongodb.com,resources=MongoDBAtlasInventorys,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=atlas.mongodb.com,resources=MongoDBAtlasInventorys/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch
 
-// +kubebuilder:rbac:groups=atlas.mongodb.com,namespace=default,resources=atlasservices,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=atlas.mongodb.com,namespace=default,resources=atlasservices/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=atlas.mongodb.com,namespace=default,resources=MongoDBAtlasInventorys,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=atlas.mongodb.com,namespace=default,resources=MongoDBAtlasInventorys/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups="",namespace=default,resources=secrets,verbs=get;list;watch
 
-func (r *AtlasServiceReconciler) Reconcile(context context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *MongoDBAtlasInventoryReconciler) Reconcile(context context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = context
-	log := r.Log.With("atlasservice", req.NamespacedName)
+	log := r.Log.With("MongoDBAtlasInventory", req.NamespacedName)
 
-	service := &mdbv1.AtlasService{}
-	result := customresource.PrepareResource(r.Client, req, service, log)
+	inventory := &dbaas.MongoDBAtlasInventory{}
+	result := customresource.PrepareResource(r.Client, req, inventory, log)
 	if !result.IsOk() {
 		return result.ReconcileResult(), nil
 	}
-	if service.ConnectionSecretObjectKey() != nil {
+	if inventory.ConnectionSecretObjectKey() != nil {
 		// Note, that we are not watching the global connection secret - seems there is no point in reconciling all
 		// the services once that secret is changed
-		r.EnsureResourcesAreWatched(req.NamespacedName, "Secret", log, *service.ConnectionSecretObjectKey())
+		r.EnsureResourcesAreWatched(req.NamespacedName, "Secret", log, *inventory.ConnectionSecretObjectKey())
 	}
-	ctx := customresource.MarkReconciliationStarted(r.Client, service, log)
+	ctx := customresource.MarkReconciliationStarted(r.Client, inventory, log)
 
-	log.Infow("-> Starting AtlasService reconciliation", "spec", service.Spec)
+	log.Infow("-> Starting MongoDBAtlasInventory reconciliation", "spec", inventory.Spec)
 
 	// This update will make sure the status is always updated in case of any errors or successful result
-	defer statushandler.Update(ctx, r.Client, r.EventRecorder, service)
+	defer statushandler.Update(ctx, r.Client, r.EventRecorder, inventory)
 
-	connection, err := atlas.ReadConnection(log, r.Client, r.GlobalAPISecret, service.ConnectionSecretObjectKey())
+	connection, err := atlas.ReadConnection(log, r.Client, r.GlobalAPISecret, inventory.ConnectionSecretObjectKey())
 	if err != nil {
 		result := workflow.Terminate(workflow.AtlasCredentialsNotProvided, err.Error())
 		ctx.SetConditionFromResult(status.ReadyType, result)
@@ -95,7 +95,7 @@ func (r *AtlasServiceReconciler) Reconcile(context context.Context, req ctrl.Req
 	}
 	ctx.Client = atlasClient
 
-	svcList, result := r.discoverServices(ctx)
+	inventoryList, result := discoverInventories(ctx)
 	if !result.IsOk() {
 		ctx.SetConditionFromResult(status.ReadyType, result)
 		return result.ReconcileResult(), nil
@@ -103,24 +103,24 @@ func (r *AtlasServiceReconciler) Reconcile(context context.Context, req ctrl.Req
 
 	ctx.
 		SetConditionTrue(status.ReadyType).
-		EnsureStatusOption(status.AtlasProjectServiceListOption(svcList))
+		EnsureStatusOption(dbaas.MongoDBAtlasInventoryListOption(inventoryList))
 
 	return ctrl.Result{}, nil
 }
 
 // Delete is a no-op
-func (r *AtlasServiceReconciler) Delete(e event.DeleteEvent) error {
+func (r *MongoDBAtlasInventoryReconciler) Delete(e event.DeleteEvent) error {
 	return nil
 }
 
-func (r *AtlasServiceReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	c, err := controller.New("AtlasService", mgr, controller.Options{Reconciler: r})
+func (r *MongoDBAtlasInventoryReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	c, err := controller.New("MongoDBAtlasInventory", mgr, controller.Options{Reconciler: r})
 	if err != nil {
 		return err
 	}
 
-	// Watch for changes to primary resource AtlasService & handle delete separately
-	err = c.Watch(&source.Kind{Type: &mdbv1.AtlasService{}}, &watch.EventHandlerWithDelete{Controller: r}, watch.CommonPredicates())
+	// Watch for changes to primary resource MongoDBAtlasInventory & handle delete separately
+	err = c.Watch(&source.Kind{Type: &dbaas.MongoDBAtlasInventory{}}, &watch.EventHandlerWithDelete{Controller: r}, watch.CommonPredicates())
 	if err != nil {
 		return err
 	}
