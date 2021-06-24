@@ -27,6 +27,16 @@ spec:
       kind: AtlasProject
       name: atlasprojects.atlas.mongodb.com
       version: v1
+    - description: MongoDBAtlasConnection is the Schema for the MongoDBAtlasConnections API
+      displayName: Mongo DBAtlas Connection
+      kind: MongoDBAtlasConnection
+      name: mongodbatlasconnections.dbaas.redhat.com
+      version: v1alpha1
+    - description: MongoDBAtlasInventory is the Schema for the MongoDBAtlasInventory API
+      displayName: Mongo DBAtlas Inventory
+      kind: MongoDBAtlasInventory
+      name: mongodbatlasinventories.dbaas.redhat.com
+      version: v1alpha1
   description: |
     The MongoDB Atlas Operator provides a native integration between the Kubernetes orchestration platform and MongoDB Atlas —
     the only multi-cloud document database service that gives you the versatility you need to build sophisticated and resilient applications that can adapt to changing customer demands and market trends.
@@ -147,7 +157,7 @@ spec:
       deployments: null
     strategy: ""
   installModes:
-  - supported: false
+  - supported: true
     type: OwnNamespace
   - supported: false
     type: SingleNamespace
@@ -164,10 +174,10 @@ spec:
   links:
   - name: MongoDB Atlas Kubernetes
     url: https://github.com/mongodb/mongodb-atlas-kubernetes
-  maturity: beta
-  provider:
-    name: MongoDB, Inc
   maintainers:
   - email: support@mongodb.com
+    name: MongoDB, Inc
+  maturity: beta
+  provider:
     name: MongoDB, Inc
   version: 0.0.0

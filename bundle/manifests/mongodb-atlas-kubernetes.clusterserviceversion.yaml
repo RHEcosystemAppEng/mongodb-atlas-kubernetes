@@ -60,14 +60,43 @@ metadata:
               }
             ]
           }
+        },
+        {
+          "apiVersion": "dbaas.redhat.com/v1alpha1",
+          "kind": "MongoDBAtlasConnection",
+          "metadata": {
+            "name": "test-connection"
+          },
+          "spec": {
+            "instanceID": "606b2ffbc9a90e310e642482",
+            "inventory": {
+              "name": "test-inventory"
+            }
+          }
+        },
+        {
+          "apiVersion": "dbaas.redhat.com/v1alpha1",
+          "kind": "MongoDBAtlasInventory",
+          "metadata": {
+            "name": "test-inventory"
+          },
+          "spec": {
+            "credentialsRef": {
+              "name": "my-atlas-key",
+              "namespace": "mongodb-atlas-system"
+            },
+            "provider": {
+              "name": "mongodbatlas"
+            }
+          }
         }
       ]
     capabilities: Basic Install
     categories: Database
     description: The MongoDB Atlas Kubernetes Operator enables easy management of Clusters in MongoDB Atlas
-    operators.operatorframework.io/builder: operator-sdk-v1.4.2
+    operators.operatorframework.io/builder: operator-sdk-v1.7.1
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
-  name: mongodb-atlas-kubernetes.v0.5.0
+  name: mongodb-atlas-kubernetes.v0.5.37
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -88,6 +117,16 @@ spec:
       kind: AtlasProject
       name: atlasprojects.atlas.mongodb.com
       version: v1
+    - description: MongoDBAtlasConnection is the Schema for the MongoDBAtlasConnections API
+      displayName: Mongo DBAtlas Connection
+      kind: MongoDBAtlasConnection
+      name: mongodbatlasconnections.dbaas.redhat.com
+      version: v1alpha1
+    - description: MongoDBAtlasInventory is the Schema for the MongoDBAtlasInventory API
+      displayName: Mongo DBAtlas Inventory
+      kind: MongoDBAtlasInventory
+      name: mongodbatlasinventories.dbaas.redhat.com
+      version: v1alpha1
   description: |
     The MongoDB Atlas Operator provides a native integration between the Kubernetes orchestration platform and MongoDB Atlas —
     the only multi-cloud document database service that gives you the versatility you need to build sophisticated and resilient applications that can adapt to changing customer demands and market trends.
@@ -210,6 +249,13 @@ spec:
         - apiGroups:
           - ""
           resources:
+          - events
+          verbs:
+          - create
+          - patch
+        - apiGroups:
+          - ""
+          resources:
           - secrets
           verbs:
           - create
@@ -280,6 +326,46 @@ spec:
           - patch
           - update
         - apiGroups:
+          - dbaas.redhat.com
+          resources:
+          - mongodbatlasinventories
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - dbaas.redhat.com
+          resources:
+          - mongodbatlasinventories/status
+          verbs:
+          - get
+          - patch
+          - update
+        - apiGroups:
+          - dbaas.redhat.com
+          resources:
+          - mongodbtlasconnections
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - dbaas.redhat.com
+          resources:
+          - mongodbtlasconnections/status
+          verbs:
+          - get
+          - patch
+          - update
+        - apiGroups:
           - authentication.k8s.io
           resources:
           - tokenreviews
@@ -315,7 +401,7 @@ spec:
                 - --upstream=http://127.0.0.1:8080/
                 - --logtostderr=true
                 - --v=10
-                image: gcr.io/kubebuilder/kube-rbac-proxy:v0.8.0
+                image: gcr.io/kubebuilder/kube-rbac-proxy:v0.5.0
                 name: kube-rbac-proxy
                 ports:
                 - containerPort: 8443
@@ -337,7 +423,7 @@ spec:
                   valueFrom:
                     fieldRef:
                       fieldPath: metadata.namespace
-                image: mongodb/mongodb-atlas-kubernetes-operator:0.5.0
+                image: quay.io/jianrzha/mongodb-atlas-operator:0.5.37
                 imagePullPolicy: Always
                 livenessProbe:
                   httpGet:
@@ -361,9 +447,6 @@ spec:
                     memory: 50Mi
                 securityContext:
                   allowPrivilegeEscalation: false
-              securityContext:
-                runAsNonRoot: true
-                runAsUser: 2000
               serviceAccountName: mongodb-atlas-operator
               terminationGracePeriodSeconds: 10
       permissions:
@@ -392,7 +475,7 @@ spec:
         serviceAccountName: mongodb-atlas-operator
     strategy: deployment
   installModes:
-  - supported: false
+  - supported: true
     type: OwnNamespace
   - supported: false
     type: SingleNamespace
@@ -415,4 +498,4 @@ spec:
   maturity: beta
   provider:
     name: MongoDB, Inc
-  version: 0.5.0
+  version: 0.5.37

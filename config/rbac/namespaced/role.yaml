@@ -28,46 +28,6 @@ rules:
 - apiGroups:
   - atlas.mongodb.com
   resources:
-  - MongoDBAtlasConnections
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - atlas.mongodb.com
-  resources:
-  - MongoDBAtlasConnections/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - atlas.mongodb.com
-  resources:
-  - MongoDBAtlasInventorys
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - atlas.mongodb.com
-  resources:
-  - MongoDBAtlasInventorys/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - atlas.mongodb.com
-  resources:
   - atlasclusters
   verbs:
   - create
@@ -121,6 +81,46 @@ rules:
   - atlas.mongodb.com
   resources:
   - atlasprojects/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - dbaas.redhat.com
+  resources:
+  - mongodbatlasinventories
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - dbaas.redhat.com
+  resources:
+  - mongodbatlasinventories/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - dbaas.redhat.com
+  resources:
+  - mongodbtlasconnections
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - dbaas.redhat.com
+  resources:
+  - mongodbtlasconnections/status
   verbs:
   - get
   - patch

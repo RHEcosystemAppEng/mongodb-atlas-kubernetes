@@ -5,6 +5,8 @@ resources:
 - bases/atlas.mongodb.com_atlasclusters.yaml
 - bases/atlas.mongodb.com_atlasprojects.yaml
 - bases/atlas.mongodb.com_atlasdatabaseusers.yaml
+- bases/dbaas.redhat.com_mongodbatlasconnections.yaml
+- bases/dbaas.redhat.com_mongodbatlasinventories.yaml
 # +kubebuilder:scaffold:crdkustomizeresource
 
 patchesStrategicMerge:

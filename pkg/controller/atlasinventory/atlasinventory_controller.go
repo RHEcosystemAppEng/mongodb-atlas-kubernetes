@@ -51,12 +51,12 @@ type MongoDBAtlasInventoryReconciler struct {
 
 // Dev note: duplicate the permissions in both sections below to generate both Role and ClusterRoles
 
-// +kubebuilder:rbac:groups=atlas.mongodb.com,resources=MongoDBAtlasInventorys,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=atlas.mongodb.com,resources=MongoDBAtlasInventorys/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=dbaas.redhat.com,resources=mongodbatlasinventories,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=dbaas.redhat.com,resources=mongodbatlasinventories/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch
 
-// +kubebuilder:rbac:groups=atlas.mongodb.com,namespace=default,resources=MongoDBAtlasInventorys,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=atlas.mongodb.com,namespace=default,resources=MongoDBAtlasInventorys/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=dbaas.redhat.com,namespace=default,resources=mongodbatlasinventories,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=dbaas.redhat.com,namespace=default,resources=mongodbatlasinventories/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups="",namespace=default,resources=secrets,verbs=get;list;watch
 
 func (r *MongoDBAtlasInventoryReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {

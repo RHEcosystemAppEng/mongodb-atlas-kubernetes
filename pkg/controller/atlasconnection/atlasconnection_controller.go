@@ -73,12 +73,12 @@ type MongoDBAtlasConnectionReconciler struct {
 
 // Dev note: duplicate the permissions in both sections below to generate both Role and ClusterRoles
 
-// +kubebuilder:rbac:groups=atlas.mongodb.com,resources=MongoDBAtlasConnections,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=atlas.mongodb.com,resources=MongoDBAtlasConnections/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=dbaas.redhat.com,resources=mongodbtlasconnections,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=dbaas.redhat.com,resources=mongodbtlasconnections/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch
 
-// +kubebuilder:rbac:groups=atlas.mongodb.com,namespace=default,resources=MongoDBAtlasConnections,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=atlas.mongodb.com,namespace=default,resources=MongoDBAtlasConnections/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=dbaas.redhat.com,namespace=default,resources=mongodbtlasconnections,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=dbaas.redhat.com,namespace=default,resources=mongodbtlasconnections/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups="",namespace=default,resources=secrets,verbs=get;list;watch
 
 func (r *MongoDBAtlasConnectionReconciler) Reconcile(cx context.Context, req ctrl.Request) (ctrl.Result, error) {
