@@ -99,7 +99,7 @@ func (r *MongoDBAtlasConnectionReconciler) Reconcile(cx context.Context, req ctr
 		return ctrl.Result{}, err
 	}
 
-	if isReadyForBinding(conn) {
+	if isReadyForBinding(conn) && conn.Status.Binding != nil {
 		// For this release, the InstanceID is mutable, so no reconciliation is needed.
 		return ctrl.Result{}, nil
 	}
@@ -149,19 +149,7 @@ func (r *MongoDBAtlasConnectionReconciler) Reconcile(cx context.Context, req ctr
 
 	projectID := instance.InstanceInfo[dbaas.ProjectIDKey]
 
-	if conn.Status.ConnectionInfoRef == nil {
-		// Now create a configmap for non-sensitive information needed for connecting to the DB instance
-		cm := getOwnedConfigMap(conn, instance.InstanceInfo[dbaas.ConnectionStringsStandardSrvKey])
-		cmCreated, err := r.Clientset.CoreV1().ConfigMaps(req.Namespace).Create(context.Background(), cm, metav1.CreateOptions{})
-		if err != nil {
-			result := workflow.Terminate(workflow.MongoDBAtlasConnectionBackendError, err.Error())
-			dbaas.SetConnectionCondition(conn, dbaasv1alpha1.DBaaSConnectionProviderSyncType, metav1.ConditionFalse, string(result.Reason()), result.Message())
-			return ctrl.Result{}, fmt.Errorf("failed to create configmap:%w", err)
-		}
-		conn.Status.ConnectionInfoRef = &corev1.LocalObjectReference{Name: cmCreated.Name}
-	}
-
-	if conn.Status.CredentialsRef == nil {
+	if conn.Status.Binding == nil {
 		// Generate a db username and password
 		dbUserName := fmt.Sprintf("atlas-db-user-%v", time.Now().UnixNano())
 		dbPassword := generatePassword()
@@ -172,7 +160,7 @@ func (r *MongoDBAtlasConnectionReconciler) Reconcile(cx context.Context, req ctr
 		}
 
 		// Now create a secret to store the password locally
-		secret := getOwnedSecret(conn, dbUserName, dbPassword)
+		secret := getOwnedSecret(conn, dbUserName, dbPassword, instance.InstanceInfo[dbaas.ConnectionStringsStandardSrvKey])
 		secretCreated, err := r.Clientset.CoreV1().Secrets(req.Namespace).Create(context.Background(), secret, metav1.CreateOptions{})
 		if err != nil {
 			// Clean up the db user in atlas that was just created
@@ -181,7 +169,7 @@ func (r *MongoDBAtlasConnectionReconciler) Reconcile(cx context.Context, req ctr
 			dbaas.SetConnectionCondition(conn, dbaasv1alpha1.DBaaSConnectionProviderSyncType, metav1.ConditionFalse, string(result.Reason()), result.Message())
 			return ctrl.Result{}, fmt.Errorf("failed to create secret:%w", err)
 		}
-		conn.Status.CredentialsRef = &corev1.LocalObjectReference{Name: secretCreated.Name}
+		conn.Status.Binding = &corev1.LocalObjectReference{Name: secretCreated.Name}
 	}
 
 	// Update the status
@@ -223,11 +211,11 @@ func (r *MongoDBAtlasConnectionReconciler) Delete(e event.DeleteEvent) error {
 }
 
 func (r *MongoDBAtlasConnectionReconciler) deleteDBUser(conn *dbaas.MongoDBAtlasConnection, log *zap.SugaredLogger) error {
-	if conn.Status.CredentialsRef == nil {
+	if conn.Status.Binding == nil {
 		log.Infow("No credentialsRef provided. Nothing to delete.")
 		return nil
 	}
-	secret, err := r.getSecret(conn.Namespace, conn.Status.CredentialsRef.Name)
+	secret, err := r.getSecret(conn.Namespace, conn.Status.Binding.Name)
 	if err != nil {
 		if apiErrors.IsNotFound(err) {
 			log.Infow("No secret found for db user credentials. Deletion done.")
@@ -372,44 +360,8 @@ func getHost(connectionStringStandardSrv string) string {
 	return host
 }
 
-// getOwnedConfigMap returns a configmap object with ownership set
-func getOwnedConfigMap(connection *dbaas.MongoDBAtlasConnection, connectionStringStandardSrv string) *corev1.ConfigMap {
-	return &corev1.ConfigMap{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "ConfigMap",
-			APIVersion: "v1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: "atlas-connection-cm-",
-			Namespace:    connection.Namespace,
-			Labels: map[string]string{
-				"managed-by":      "atlas-operator",
-				"owner":           connection.Name,
-				"owner.kind":      connection.Kind,
-				"owner.namespace": connection.Namespace,
-			},
-			OwnerReferences: []metav1.OwnerReference{
-				{
-					UID:                connection.GetUID(),
-					APIVersion:         "dbaas.redhat.com/v1alpha1",
-					BlockOwnerDeletion: ptr.BoolPtr(false),
-					Controller:         ptr.BoolPtr(true),
-					Kind:               "MongoDBAtlasConnection",
-					Name:               connection.Name,
-				},
-			},
-		},
-		Data: map[string]string{
-			dbaas.ProviderKey:           dbaas.Provider,
-			dbaas.ServiceBindingTypeKey: dbaas.ServiceBindingType,
-			dbaas.HostKey:               getHost(connectionStringStandardSrv),
-			dbaas.SrvKey:                "true",
-		},
-	}
-}
-
 // getOwnedSecret returns a secret object for database credentials with ownership set
-func getOwnedSecret(connection *dbaas.MongoDBAtlasConnection, username, password string) *corev1.Secret {
+func getOwnedSecret(connection *dbaas.MongoDBAtlasConnection, username, password, connectionStringStandardSrv string) *corev1.Secret {
 	return &corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
 			Kind: "Opaque",
@@ -434,9 +386,14 @@ func getOwnedSecret(connection *dbaas.MongoDBAtlasConnection, username, password
 				},
 			},
 		},
+		Type: corev1.SecretType(fmt.Sprintf("servicebinding.io/%s", dbaas.ServiceBindingType)),
 		Data: map[string][]byte{
-			DBUserNameKey: []byte(username),
-			DBPasswordKey: []byte(password),
+			DBUserNameKey:               []byte(username),
+			DBPasswordKey:               []byte(password),
+			dbaas.ProviderKey:           []byte(dbaas.Provider),
+			dbaas.ServiceBindingTypeKey: []byte(dbaas.ServiceBindingType),
+			dbaas.HostKey:               []byte(getHost(connectionStringStandardSrv)),
+			dbaas.SrvKey:                []byte("true"),
 		},
 	}
 }

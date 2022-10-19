@@ -32,7 +32,7 @@ const (
 	HostKey                         = "host"
 	SrvKey                          = "srv"
 	ProviderKey                     = "provider"
-	Provider                        = "Red Hat DBaaS / MongoDB Atlas"
+	Provider                        = "rhoda/mongodb atlas"
 	ServiceBindingTypeKey           = "type"
 	ServiceBindingType              = "mongodb"
 	DefaultDatabase                 = "admin"

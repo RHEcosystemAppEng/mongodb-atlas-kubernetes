@@ -145,105 +145,85 @@ func TestAtlasConnectionReconcile(t *testing.T) {
 	logger := zaptest.Logger(t)
 
 	testCase := map[string]struct {
-		createConnection    bool
-		configMapCreateFail bool
-		secretCreateFail    bool
-		instanceID          string
-		expectedRequeue     bool
-		expectedErrString   string
-		expectedStatus      string
-		expectedReason      string
-		inventoryReason     string
-		inventoryStatus     string
-		instancesPath       string
+		createConnection  bool
+		secretCreateFail  bool
+		instanceID        string
+		expectedRequeue   bool
+		expectedErrString string
+		expectedStatus    string
+		expectedReason    string
+		inventoryReason   string
+		inventoryStatus   string
+		instancesPath     string
 	}{
 		"Nominal": {
-			createConnection:    true,
-			configMapCreateFail: false,
-			secretCreateFail:    false,
-			instanceID:          "70b7a72f4877d05880c487ef",
-			inventoryReason:     "SyncOK",
-			inventoryStatus:     "True",
-			instancesPath:       "../../../test/e2e/data/atlasinventoryexpected.json",
-			expectedErrString:   "",
-			expectedRequeue:     false,
-			expectedStatus:      "True",
-			expectedReason:      "Ready",
+			createConnection:  true,
+			secretCreateFail:  false,
+			instanceID:        "70b7a72f4877d05880c487ef",
+			inventoryReason:   "SyncOK",
+			inventoryStatus:   "True",
+			instancesPath:     "../../../test/e2e/data/atlasinventoryexpected.json",
+			expectedErrString: "",
+			expectedRequeue:   false,
+			expectedStatus:    "True",
+			expectedReason:    "Ready",
 		},
 		"ConnectionCRNotFound": {
-			createConnection:    false,
-			configMapCreateFail: false,
-			secretCreateFail:    false,
-			instanceID:          "70b7a72f4877d05880c487",
-			inventoryReason:     "SyncOK",
-			inventoryStatus:     "True",
-			instancesPath:       "../../../test/e2e/data/atlasinventoryexpected.json",
-			expectedRequeue:     false,
+			createConnection: false,
+			secretCreateFail: false,
+			instanceID:       "70b7a72f4877d05880c487",
+			inventoryReason:  "SyncOK",
+			inventoryStatus:  "True",
+			instancesPath:    "../../../test/e2e/data/atlasinventoryexpected.json",
+			expectedRequeue:  false,
 		},
 		"InstanceIDNotFound": {
-			createConnection:    true,
-			configMapCreateFail: false,
-			secretCreateFail:    false,
-			instanceID:          "70b7a72f4877d05880c487efmissing",
-			inventoryReason:     "SyncOK",
-			inventoryStatus:     "True",
-			instancesPath:       "../../../test/e2e/data/atlasinventoryexpected.json",
-			expectedErrString:   "",
-			expectedRequeue:     false,
-			expectedStatus:      "False",
-			expectedReason:      "InstanceIDNotFound",
+			createConnection:  true,
+			secretCreateFail:  false,
+			instanceID:        "70b7a72f4877d05880c487efmissing",
+			inventoryReason:   "SyncOK",
+			inventoryStatus:   "True",
+			instancesPath:     "../../../test/e2e/data/atlasinventoryexpected.json",
+			expectedErrString: "",
+			expectedRequeue:   false,
+			expectedStatus:    "False",
+			expectedReason:    "InstanceIDNotFound",
 		},
 		"InventoryNotFound": {
-			createConnection:    true,
-			configMapCreateFail: false,
-			secretCreateFail:    false,
-			instanceID:          "70b7a72f4877d05880c487ef",
-			inventoryReason:     "SyncOK",
-			inventoryStatus:     "True",
-			instancesPath:       "../../../test/e2e/data/atlasinventoryexpected.json",
-			expectedErrString:   "",
-			expectedRequeue:     false,
-			expectedStatus:      "False",
-			expectedReason:      "InventoryNotFound",
-		},
-		"ConfigMapCreateFail": {
-			createConnection:    true,
-			configMapCreateFail: true,
-			secretCreateFail:    false,
-			instanceID:          "70b7a72f4877d05880c487ef",
-			inventoryReason:     "SyncOK",
-			inventoryStatus:     "True",
-			instancesPath:       "../../../test/e2e/data/atlasinventoryexpected.json",
-			expectedErrString:   "failed to create configmap",
-			expectedRequeue:     false,
-			expectedStatus:      "False",
-			expectedReason:      "BackendError",
+			createConnection:  true,
+			secretCreateFail:  false,
+			instanceID:        "70b7a72f4877d05880c487ef",
+			inventoryReason:   "SyncOK",
+			inventoryStatus:   "True",
+			instancesPath:     "../../../test/e2e/data/atlasinventoryexpected.json",
+			expectedErrString: "",
+			expectedRequeue:   false,
+			expectedStatus:    "False",
+			expectedReason:    "InventoryNotFound",
 		},
 		"SecretCreateFail": {
-			createConnection:    true,
-			configMapCreateFail: false,
-			secretCreateFail:    true,
-			instanceID:          "70b7a72f4877d05880c487ef",
-			inventoryReason:     "SyncOK",
-			inventoryStatus:     "True",
-			instancesPath:       "../../../test/e2e/data/atlasinventoryexpected.json",
-			expectedErrString:   "failed to create secret",
-			expectedRequeue:     false,
-			expectedStatus:      "False",
-			expectedReason:      "BackendError",
+			createConnection:  true,
+			secretCreateFail:  true,
+			instanceID:        "70b7a72f4877d05880c487ef",
+			inventoryReason:   "SyncOK",
+			inventoryStatus:   "True",
+			instancesPath:     "../../../test/e2e/data/atlasinventoryexpected.json",
+			expectedErrString: "failed to create secret",
+			expectedRequeue:   false,
+			expectedStatus:    "False",
+			expectedReason:    "BackendError",
 		},
 		"AtlasDBUserCreateFail": {
-			createConnection:    true,
-			configMapCreateFail: false,
-			secretCreateFail:    false,
-			instanceID:          "60b7a72f4877d05880c487d2",
-			inventoryReason:     "SyncOK",
-			inventoryStatus:     "True",
-			instancesPath:       "../../../test/e2e/data/atlasinventoryexpected.json",
-			expectedErrString:   "",
-			expectedRequeue:     false,
-			expectedStatus:      "False",
-			expectedReason:      "DatabaseUserNotCreatedInAtlas",
+			createConnection:  true,
+			secretCreateFail:  false,
+			instanceID:        "60b7a72f4877d05880c487d2",
+			inventoryReason:   "SyncOK",
+			inventoryStatus:   "True",
+			instancesPath:     "../../../test/e2e/data/atlasinventoryexpected.json",
+			expectedErrString: "",
+			expectedRequeue:   false,
+			expectedStatus:    "False",
+			expectedReason:    "DatabaseUserNotCreatedInAtlas",
 		},
 	}
 
@@ -338,15 +318,10 @@ func TestAtlasConnectionReconcile(t *testing.T) {
 			// Create a fake clientset
 			clientSet := k8sfake.NewSimpleClientset()
 			// Fake clientset does not generate resource names based on GenerateName,
-			// so we add reactor to generate such names when a secret or configmap is created
+			// so we add reactor to generate such names when a secret is created
 			clientSet.PrependReactor("create", "secrets", GenerateNameReactor)
-			clientSet.PrependReactor("create", "configmaps", GenerateNameReactor)
-			// Simulate configmap or secret creationg failures
-			if tc.configMapCreateFail {
-				clientSet.CoreV1().(*k8sfakecorev1.FakeCoreV1).PrependReactor("create", "configmaps", func(action ktesting.Action) (handled bool, ret runtime.Object, err error) {
-					return true, &corev1.ConfigMap{}, errors.New("Error creating configmap")
-				})
-			} else if tc.secretCreateFail {
+			// Simulate secret creationg failures
+			if tc.secretCreateFail {
 				clientSet.CoreV1().(*k8sfakecorev1.FakeCoreV1).PrependReactor("create", "secrets", func(action ktesting.Action) (handled bool, ret runtime.Object, err error) {
 					return true, &corev1.Secret{}, errors.New("Error creating secret")
 				})
@@ -382,12 +357,10 @@ func TestAtlasConnectionReconcile(t *testing.T) {
 			assert.Equal(t, tc.expectedStatus, string(connectionUpdated.Status.Conditions[0].Status))
 			assert.Equal(t, tc.expectedReason, connectionUpdated.Status.Conditions[0].Reason)
 			if isReadyForBinding(connectionUpdated) {
-				assert.NotNil(t, connectionUpdated.Status.ConnectionInfoRef)
-				assert.NotNil(t, connectionUpdated.Status.CredentialsRef)
-				assert.NotEmpty(t, connectionUpdated.Status.ConnectionInfoRef.Name)
-				assert.NotEmpty(t, connectionUpdated.Status.CredentialsRef.Name)
+				assert.NotNil(t, connectionUpdated.Status.Binding)
+				assert.NotEmpty(t, connectionUpdated.Status.Binding.Name)
 			} else {
-				assert.Nil(t, connectionUpdated.Status.CredentialsRef)
+				assert.Nil(t, connectionUpdated.Status.Binding)
 			}
 		})
 	}
@@ -524,9 +497,8 @@ func TestDBUserDelete(t *testing.T) {
 			// Create a fake clientset
 			clientSet := k8sfake.NewSimpleClientset()
 			// Fake clientset does not generate resource names based on GenerateName,
-			// so we add reactor to generate such names when a secret or configmap is created
+			// so we add reactor to generate such names when a secret is created
 			clientSet.PrependReactor("create", "secrets", GenerateNameReactor)
-			clientSet.PrependReactor("create", "configmaps", GenerateNameReactor)
 
 			r := &MongoDBAtlasConnectionReconciler{
 				Client:          client,
