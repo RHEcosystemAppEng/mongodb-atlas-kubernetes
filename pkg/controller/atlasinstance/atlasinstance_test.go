@@ -42,6 +42,7 @@ import (
 	v1 "github.com/mongodb/mongodb-atlas-kubernetes/pkg/api/v1"
 	"github.com/mongodb/mongodb-atlas-kubernetes/pkg/api/v1/common"
 	status "github.com/mongodb/mongodb-atlas-kubernetes/pkg/api/v1/status"
+	"github.com/mongodb/mongodb-atlas-kubernetes/pkg/controller/customresource"
 	"github.com/mongodb/mongodb-atlas-kubernetes/pkg/controller/watch"
 )
 
@@ -53,10 +54,12 @@ func TestGetInstanceData(t *testing.T) {
 		providerName        string
 		regionName          string
 		instanceSizeName    string
+		ipAccessList        string
 		expProviderName     string
 		expRegionName       string
 		expInstanceSizeName string
 		expErrMsg           string
+		expIPAccessList     string
 	}{
 		"Nominal": {
 			deploymentName:      "myDeployment",
@@ -64,10 +67,25 @@ func TestGetInstanceData(t *testing.T) {
 			providerName:        "GCP",
 			regionName:          "GCP_REGION",
 			instanceSizeName:    "M10",
+			ipAccessList:        "192.168.0.1",
 			expProviderName:     "GCP",
 			expRegionName:       "GCP_REGION",
 			expInstanceSizeName: "M10",
 			expErrMsg:           "",
+			expIPAccessList:     "192.168.0.1",
+		},
+		"NominalWithCIDR": {
+			deploymentName:      "myDeployment",
+			projectName:         "myProject",
+			providerName:        "GCP",
+			regionName:          "GCP_REGION",
+			instanceSizeName:    "M10",
+			ipAccessList:        "192.168.0.1/24",
+			expProviderName:     "GCP",
+			expRegionName:       "GCP_REGION",
+			expInstanceSizeName: "M10",
+			expErrMsg:           "",
+			expIPAccessList:     "192.168.0.1/24",
 		},
 		"MissingDeploymentName": {
 			deploymentName:      "",
@@ -101,6 +119,7 @@ func TestGetInstanceData(t *testing.T) {
 			expRegionName:       "AWS_REGION",
 			expInstanceSizeName: "M10",
 			expErrMsg:           "",
+			expIPAccessList:     "0.0.0.0/0",
 		},
 		"UseDefaultRegion": {
 			deploymentName:      "myDeployment",
@@ -112,6 +131,7 @@ func TestGetInstanceData(t *testing.T) {
 			expRegionName:       "US_EAST_1",
 			expInstanceSizeName: "M10",
 			expErrMsg:           "",
+			expIPAccessList:     "0.0.0.0/0",
 		},
 		"UseDefaultInstanceSizeName": {
 			deploymentName:      "myDeployment",
@@ -123,6 +143,7 @@ func TestGetInstanceData(t *testing.T) {
 			expRegionName:       "US_EAST_1",
 			expInstanceSizeName: "M0",
 			expErrMsg:           "",
+			expIPAccessList:     "0.0.0.0/0",
 		},
 	}
 
@@ -148,6 +169,7 @@ func TestGetInstanceData(t *testing.T) {
 					OtherInstanceParams: map[string]string{
 						"projectName":      tc.projectName,
 						"instanceSizeName": tc.instanceSizeName,
+						"ipAccessList":     tc.expIPAccessList,
 					},
 				},
 			}
@@ -158,6 +180,7 @@ func TestGetInstanceData(t *testing.T) {
 				ProviderName:     tc.expProviderName,
 				RegionName:       tc.expRegionName,
 				InstanceSizeName: tc.expInstanceSizeName,
+				IPAccessList:     tc.expIPAccessList,
 			}
 			res, err := getInstanceData(log, instance)
 			if len(tc.expErrMsg) == 0 {
@@ -380,101 +403,137 @@ func TestAtlasInstanceReconcile(t *testing.T) {
 		Log:             logger.Sugar(),
 		ResourceWatcher: watch.NewResourceWatcher(),
 	}
-
-	tcName := "mytest"
-	deploymentName := "mydeploymentnew"
-	projectName := "myproject"
-	expectedPhase := dbaasv1alpha1.InstancePhasePending
-	expectedErrString := "CLUSTER_NOT_FOUND"
-	expectedRequeue := true
-	inventory := &dbaas.MongoDBAtlasInventory{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "dbaas.redhat.com/v1alpha1",
-			Kind:       "MongoDBAtlasInventory",
+	testCase := map[string]struct {
+		projectName    string
+		ipAccessList   string
+		expStatus      string
+		expAnnotations map[string]string
+	}{
+		"WithExistingProject": {
+			projectName:  "myproject",
+			ipAccessList: "0.0.0.0/0",
+			expStatus:    "False",
+			expAnnotations: map[string]string{
+				customresource.ResourcePolicyAnnotation:       customresource.ResourcePolicyKeep,
+				customresource.ReconciliationPolicyAnnotation: customresource.ReconciliationPolicySkip,
+			},
 		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("inventory-%s", tcName),
-			Namespace: "dbaas-operator",
-		},
-		Spec: dbaasv1alpha1.DBaaSInventorySpec{
-			CredentialsRef: &dbaasv1alpha1.LocalObjectReference{
-				Name: fmt.Sprintf("secret-%s", tcName),
+		"WithNewProject": {
+			projectName:  "myprojectnew",
+			ipAccessList: "132.28.27.6/32",
+			expStatus:    "False",
+			expAnnotations: map[string]string{
+				customresource.ResourcePolicyAnnotation: customresource.ResourcePolicyKeep,
 			},
 		},
 	}
-	secret := &corev1.Secret{
-		TypeMeta: metav1.TypeMeta{
-			Kind: "Opaque",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("secret-%s", tcName),
-			Namespace: "dbaas-operator",
-			Labels: map[string]string{
-				"atlas.mongodb.com/type": "credentials",
-			},
-		},
-		Data: map[string][]byte{
-			"orgId":         []byte("testorgid"),
-			"privateApiKey": []byte("testprivatekey"),
-			"publicApiKey":  []byte("testpublickey"),
-		},
-	}
+	for tcName, tc := range testCase {
+		t.Run(tcName, func(t *testing.T) {
+			deploymentName := "mydeploymentnew"
+			expectedPhase := dbaasv1alpha1.InstancePhasePending
+			expectedErrString := "CLUSTER_NOT_FOUND"
+			expectedRequeue := true
+			inventory := &dbaas.MongoDBAtlasInventory{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "dbaas.redhat.com/v1alpha1",
+					Kind:       "MongoDBAtlasInventory",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      fmt.Sprintf("inventory-%s", tcName),
+					Namespace: "dbaas-operator",
+				},
+				Spec: dbaasv1alpha1.DBaaSInventorySpec{
+					CredentialsRef: &dbaasv1alpha1.LocalObjectReference{
+						Name: fmt.Sprintf("secret-%s", tcName),
+					},
+				},
+			}
+			secret := &corev1.Secret{
+				TypeMeta: metav1.TypeMeta{
+					Kind: "Opaque",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      fmt.Sprintf("secret-%s", tcName),
+					Namespace: "dbaas-operator",
+					Labels: map[string]string{
+						"atlas.mongodb.com/type": "credentials",
+					},
+				},
+				Data: map[string][]byte{
+					"orgId":         []byte("testorgid"),
+					"privateApiKey": []byte("testprivatekey"),
+					"publicApiKey":  []byte("testpublickey"),
+				},
+			}
 
-	instance := &dbaas.MongoDBAtlasInstance{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "dbaas.redhat.com/v1alpha1",
-			Kind:       "MongoDBAtlasInstance",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("instance-%s", tcName),
-			Namespace: "dbaas-operator",
-		},
-		Spec: dbaasv1alpha1.DBaaSInstanceSpec{
-			Name: deploymentName,
-			InventoryRef: dbaasv1alpha1.NamespacedName{
-				Name:      inventory.Name,
-				Namespace: inventory.Namespace,
-			},
-			OtherInstanceParams: map[string]string{
-				"projectName": projectName,
-			},
-		},
-	}
-	err := client.Create(context.Background(), secret)
-	assert.NoError(t, err)
-	err = client.Create(context.Background(), inventory)
-	assert.NoError(t, err)
-	err = client.Create(context.Background(), instance)
-	assert.NoError(t, err)
+			instance := &dbaas.MongoDBAtlasInstance{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "dbaas.redhat.com/v1alpha1",
+					Kind:       "MongoDBAtlasInstance",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      fmt.Sprintf("instance-%s", tcName),
+					Namespace: "dbaas-operator",
+				},
+				Spec: dbaasv1alpha1.DBaaSInstanceSpec{
+					Name: deploymentName,
+					InventoryRef: dbaasv1alpha1.NamespacedName{
+						Name:      inventory.Name,
+						Namespace: inventory.Namespace,
+					},
+					OtherInstanceParams: map[string]string{
+						"projectName":  tc.projectName,
+						"ipAccessList": tc.ipAccessList,
+					},
+				},
+			}
+			err := client.Create(context.Background(), secret)
+			assert.NoError(t, err)
+			err = client.Create(context.Background(), inventory)
+			assert.NoError(t, err)
+			err = client.Create(context.Background(), instance)
+			assert.NoError(t, err)
 
-	// Mock request to simulate Reconcile() being called on an event for a
-	// watched resource .
-	req := reconcile.Request{
-		NamespacedName: types.NamespacedName{
-			Name:      instance.Name,
-			Namespace: instance.Namespace,
-		},
-	}
-	res, err := r.Reconcile(context.Background(), req)
-	if err != nil {
-		assert.Contains(t, err.Error(), expectedErrString)
-	} else {
-		assert.Equal(t, expectedRequeue, res.Requeue)
-	}
-	instanceUpdated := &dbaas.MongoDBAtlasInstance{}
-	err = client.Get(context.Background(),
-		types.NamespacedName{
-			Name:      instance.Name,
-			Namespace: instance.Namespace,
-		}, instanceUpdated)
-	assert.NoError(t, err)
-	assert.Equal(t, expectedPhase, instanceUpdated.Status.Phase)
+			// Mock request to simulate Reconcile() being called on an event for a
+			// watched resource .
+			req := reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      instance.Name,
+					Namespace: instance.Namespace,
+				},
+			}
+			res, err := r.Reconcile(context.Background(), req)
+			if err != nil {
+				assert.Contains(t, err.Error(), expectedErrString)
+			} else {
+				assert.Equal(t, expectedRequeue, res.Requeue)
+			}
+			instanceUpdated := &dbaas.MongoDBAtlasInstance{}
+			err = client.Get(context.Background(),
+				types.NamespacedName{
+					Name:      instance.Name,
+					Namespace: instance.Namespace,
+				}, instanceUpdated)
+			assert.NoError(t, err)
+			assert.Equal(t, expectedPhase, instanceUpdated.Status.Phase)
 
-	// After an instance is deleted, the corresponding atlas project should be deleted
-	delEvent := event.DeleteEvent{Object: instance}
-	err = r.Delete(delEvent)
-	assert.NoError(t, err)
-	atlasProject, err := r.getAtlasProject(context.Background(), instance)
-	assert.NoError(t, err)
-	assert.Nil(t, atlasProject)
+			// Verify that the AtlasProject created has ipAccessList set in its spec
+			atlasProject, err := r.getAtlasProject(context.Background(), instance)
+			assert.NoError(t, err)
+			assert.NotNil(t, atlasProject)
+			assert.NotEmpty(t, atlasProject.Spec.ProjectIPAccessList)
+			assert.Equal(t, atlasProject.Spec.ProjectIPAccessList[0].CIDRBlock, tc.ipAccessList)
+
+			// Verify that the AtlasProject created has the annotations correctly set
+			assert.True(t, reflect.DeepEqual(atlasProject.Annotations, tc.expAnnotations))
+
+			// After an instance is deleted, the corresponding atlas project should be deleted
+			delEvent := event.DeleteEvent{Object: instance}
+			err = r.Delete(delEvent)
+			assert.NoError(t, err)
+			atlasProject, err = r.getAtlasProject(context.Background(), instance)
+			assert.NoError(t, err)
+			assert.Nil(t, atlasProject)
+		})
+	}
 }

@@ -19,14 +19,14 @@ import (
 )
 
 const (
-	CloudProviderKey    = "providerName"
-	CloudRegionKey      = "regionName"
-	ProjectIDKey        = "projectID"
-	ProjectNameKey      = "projectName"
-	ProvisionPhaseKey   = "state"
-	InstanceSizeNameKey = "instanceSizeName"
-	ClusterNameKey      = "clusterName"
-
+	CloudProviderKey                = "providerName"
+	CloudRegionKey                  = "regionName"
+	ProjectIDKey                    = "projectID"
+	ProjectNameKey                  = "projectName"
+	ProvisionPhaseKey               = "state"
+	InstanceSizeNameKey             = "instanceSizeName"
+	ClusterNameKey                  = "clusterName"
+	IPAccessListKey                 = "ipAccessList"
 	ConnectionStringsStandardSrvKey = "connectionStringsStandardSrv"
 	InstanceIDKey                   = "instanceID"
 	HostKey                         = "host"

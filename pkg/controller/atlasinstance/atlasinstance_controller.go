@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"strings"
 	"time"
 
@@ -84,6 +85,7 @@ type InstanceData struct {
 	ProviderName     string
 	RegionName       string
 	InstanceSizeName string
+	IPAccessList     string
 }
 
 const (
@@ -150,57 +152,84 @@ func (r *MongoDBAtlasInstanceReconciler) Reconcile(cx context.Context, req ctrl.
 		log.Error(err, "Invalid parameters")
 		return ctrl.Result{}, err
 	}
-
-	atlasProject, err := r.reconcileAtlasProject(cx, inst, instData, inventory)
+	result, err := r.setAtlasClient(cx, log, inst, inventory)
+	if err != nil {
+		return result, err
+	}
+	atlasProject, projectID, err := r.reconcileAtlasProject(cx, inst, instData, inventory)
 	if err != nil {
 		log.Error(err, "Failed to reconcile Atlas Project")
 		return ctrl.Result{}, err
 	}
-	atlasProjectCond := atlasProject.CheckConditions()
-	if atlasProjectCond == nil || atlasProjectCond.Type == status.IPAccessListReadyType { // AtlasProject reconciliation still on going
-		log.Infof("Atlas Project for instance:%v/%v is not ready. Requeue to retry.", inst.Namespace, inst.Name)
-		// Set phase to Pending
-		inst.Status.Phase = dbaasv1alpha1.InstancePhasePending
-		// Requeue to try again
-		return ctrl.Result{Requeue: true}, nil
-	}
-	if atlasProjectCond.Status == corev1.ConditionFalse { // AtlasProject reconciliation failed
-		dbaas.SetInstanceCondition(inst, dbaasv1alpha1.DBaaSInstanceProviderSyncType, metav1.ConditionFalse, atlasProjectCond.Reason, atlasProjectCond.Message)
-		// Do not requeue
-		return ctrl.Result{}, nil
+	if !isReconcilationSkipped(atlasProject) {
+		atlasProjectCond := atlasProject.CheckConditions()
+		if atlasProjectCond == nil || atlasProjectCond.Type == status.IPAccessListReadyType { // AtlasProject reconciliation still on going
+			log.Infof("Atlas Project for instance:%v/%v is not ready. Requeue to retry.", inst.Namespace, inst.Name)
+			// Set phase to Pending
+			inst.Status.Phase = dbaasv1alpha1.InstancePhasePending
+			// Requeue to try again
+			return ctrl.Result{Requeue: true}, nil
+		}
+		if atlasProjectCond.Status == corev1.ConditionFalse { // AtlasProject reconciliation failed
+			dbaas.SetInstanceCondition(inst, dbaasv1alpha1.DBaaSInstanceProviderSyncType, metav1.ConditionFalse, atlasProjectCond.Reason, atlasProjectCond.Message)
+			// Do not requeue
+			return ctrl.Result{}, nil
+		}
+	} else {
+		// If the atlas project reconciliation is skipped, simply update the CR status
+		// with the projectID as well as a condition accordingly
+		atlasProject.Status = status.AtlasProjectStatus{
+			ID: projectID,
+			Common: status.Common{
+				Conditions: []status.Condition{
+					{
+						Type:               "Ready",
+						Reason:             "ReconciliationSkiped",
+						Status:             "True",
+						LastTransitionTime: metav1.Now(),
+					},
+				},
+			},
+		}
+		err = r.Client.Status().Update(cx, atlasProject)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
 	}
 	// Now proceed to provision the cluster
 	return r.reconcileAtlasDeployment(cx, log, inst, instData, inventory, atlasProject)
 }
 
-func (r *MongoDBAtlasInstanceReconciler) reconcileAtlasDeployment(cx context.Context, log *zap.SugaredLogger, inst *dbaas.MongoDBAtlasInstance, instData *InstanceData, inventory *dbaas.MongoDBAtlasInventory, atlasProject *v1.AtlasProject) (ctrl.Result, error) {
-	if atlasProject == nil {
-		return ctrl.Result{}, errors.New("there is no Atlas Project used to provision atlas cluster")
-	}
+func (r *MongoDBAtlasInstanceReconciler) setAtlasClient(cx context.Context, log *zap.SugaredLogger, inst *dbaas.MongoDBAtlasInstance, inventory *dbaas.MongoDBAtlasInventory) (ctrl.Result, error) {
 	atlasConn, err := atlas.ReadConnection(log, r.Client, r.GlobalAPISecret, inventory.ConnectionSecretObjectKey())
 	if err != nil {
 		result := workflow.Terminate(workflow.MongoDBAtlasInventoryInputError, err.Error())
 		dbaas.SetInstanceCondition(inst, dbaasv1alpha1.DBaaSInstanceProviderSyncType, metav1.ConditionFalse, string(result.Reason()), result.Message())
 		return result.ReconcileResult(), nil
 	}
-	atlasClient := r.AtlasClient
-	if atlasClient == nil {
+	if r.AtlasClient == nil {
 		cl, err := atlas.Client(r.AtlasDomain, atlasConn, log)
 		if err != nil {
 			result := workflow.Terminate(workflow.MongoDBAtlasInventoryInputError, err.Error())
 			dbaas.SetInstanceCondition(inst, dbaasv1alpha1.DBaaSInstanceProviderSyncType, metav1.ConditionFalse, string(result.Reason()), result.Message())
 			return result.ReconcileResult(), nil
 		}
-		atlasClient = &cl
+		r.AtlasClient = &cl
 	}
+	return ctrl.Result{}, nil
+}
 
+func (r *MongoDBAtlasInstanceReconciler) reconcileAtlasDeployment(cx context.Context, log *zap.SugaredLogger, inst *dbaas.MongoDBAtlasInstance, instData *InstanceData, inventory *dbaas.MongoDBAtlasInventory, atlasProject *v1.AtlasProject) (ctrl.Result, error) {
+	if atlasProject == nil {
+		return ctrl.Result{}, errors.New("there is no Atlas Project used to provision atlas cluster")
+	}
 	atlasDeployment := getOwnedAtlasDeployment(inst)
 	if err := r.Client.Get(cx, types.NamespacedName{Namespace: atlasDeployment.Namespace, Name: atlasDeployment.Name}, atlasDeployment); err != nil {
 		if apiErrors.IsNotFound(err) { // The AtlasDeployment CR does not exist
 			// If the instance has been previously associated with an AtlasCluster CR, its phase is not in pending status (ie, is in creating, updating or ready)
 			// This allows the operator to migrate from a previous AtlasCluster CR to an AtlasDeployment CR
 			if len(inst.Status.Phase) == 0 || inst.Status.Phase == dbaasv1alpha1.InstancePhasePending || inst.Status.Phase == dbaasv1alpha1.InstancePhaseUnknown {
-				_, result := atlasinventory.GetClusterInfo(atlasClient, atlasProject.Spec.Name, inst.Spec.Name)
+				_, result := atlasinventory.GetClusterInfo(r.AtlasClient, atlasProject.Spec.Name, inst.Spec.Name)
 				if result.IsOk() {
 					// The cluster already exists in Atlas. Mark provisioning phase as failed and return
 					inst.Status.Phase = dbaasv1alpha1.InstancePhaseFailed
@@ -215,7 +244,7 @@ func (r *MongoDBAtlasInstanceReconciler) reconcileAtlasDeployment(cx context.Con
 			return ctrl.Result{}, err
 		}
 	}
-	_, err = controllerutil.CreateOrUpdate(cx, r.Client, atlasDeployment, instanceMutateFn(atlasProject, atlasDeployment, instData))
+	_, err := controllerutil.CreateOrUpdate(cx, r.Client, atlasDeployment, instanceMutateFn(atlasProject, atlasDeployment, instData))
 	if err != nil {
 		log.Error(err, "Failed to create or update AtlasDeployment resource")
 		return ctrl.Result{}, err
@@ -234,7 +263,7 @@ func (r *MongoDBAtlasInstanceReconciler) reconcileAtlasDeployment(cx context.Con
 		return ctrl.Result{}, err
 	}
 
-	stateChangedInAtlas, result := setInstanceStatusWithDeploymentInfo(atlasClient, inst, atlasDeployment, instData.ProjectName)
+	stateChangedInAtlas, result := setInstanceStatusWithDeploymentInfo(r.AtlasClient, inst, atlasDeployment, instData.ProjectName)
 	if !result.IsOk() {
 		if stateChangedInAtlas {
 			// Update an annotation in the atlas deployment resource to trigger its reconciliation
@@ -302,7 +331,7 @@ func (r *MongoDBAtlasInstanceReconciler) getAtlasProject(cx context.Context, ins
 	return
 }
 
-func (r *MongoDBAtlasInstanceReconciler) reconcileAtlasProject(cx context.Context, inst *dbaas.MongoDBAtlasInstance, instData *InstanceData, inventory *dbaas.MongoDBAtlasInventory) (atlasProject *v1.AtlasProject, err error) {
+func (r *MongoDBAtlasInstanceReconciler) reconcileAtlasProject(cx context.Context, inst *dbaas.MongoDBAtlasInstance, instData *InstanceData, inventory *dbaas.MongoDBAtlasInventory) (atlasProject *v1.AtlasProject, projectID string, err error) {
 	// First check if there is already an AtlasProject resource created for this instance using labels
 	atlasProject, err = r.getAtlasProject(cx, inst)
 	if err != nil {
@@ -310,7 +339,7 @@ func (r *MongoDBAtlasInstanceReconciler) reconcileAtlasProject(cx context.Contex
 	}
 	if atlasProject == nil {
 		// No AtlasProject resource found, create one
-		project, err1 := r.getAtlasProjectForCreation(inst, instData, inventory)
+		project, id, err1 := r.getAtlasProjectForCreation(inst, instData, inventory)
 		if err1 != nil {
 			err = err1
 			return
@@ -319,7 +348,10 @@ func (r *MongoDBAtlasInstanceReconciler) reconcileAtlasProject(cx context.Contex
 		if err != nil {
 			return
 		}
+		projectID = id
 		atlasProject = project
+	} else {
+		projectID = atlasProject.Status.ID
 	}
 	return
 }
@@ -344,10 +376,34 @@ func (r *MongoDBAtlasInstanceReconciler) Delete(e event.DeleteEvent) error {
 
 // getAtlasProjectForCreation returns an AtlasProject object for provisioning
 // No ownerref is set as the same project can be used to provision multiple clusters
-func (r *MongoDBAtlasInstanceReconciler) getAtlasProjectForCreation(instance *dbaas.MongoDBAtlasInstance, data *InstanceData, inventory *dbaas.MongoDBAtlasInventory) (*v1.AtlasProject, error) {
+// If the project already exists in Atlas, its IP access list shall remain the same
+// when a new instance is provisioned. This is achieved by skipping the reconciliation
+// with an annotation set in the AtlasProject CR:
+// mongodb.com/atlas-reconciliation-policy: skip
+func (r *MongoDBAtlasInstanceReconciler) getAtlasProjectForCreation(instance *dbaas.MongoDBAtlasInstance, data *InstanceData, inventory *dbaas.MongoDBAtlasInventory) (*v1.AtlasProject, string, error) {
+	annotations := map[string]string{
+		// Keep the atlas project in Atlas when local k8s AtlasProject resource is deleted
+		customresource.ResourcePolicyAnnotation: customresource.ResourcePolicyKeep,
+	}
+	project, _, err := r.AtlasClient.Projects.GetOneProjectByName(context.Background(), data.ProjectName)
+	var projectID string
+	if err == nil {
+		// The project exists in Atlas. We skip the Atlas Project's reconciliation so that the
+		// custom resource created does not get reconciled so that it won't impact the project in Atlas.
+		// This is done by setting an annotation.
+		annotations[customresource.ReconciliationPolicyAnnotation] = customresource.ReconciliationPolicySkip
+		projectID = project.ID
+	} else if err != nil && !strings.Contains(err.Error(), "NOT_IN_GROUP") {
+		return nil, "", err
+	}
 	secret := &corev1.Secret{}
 	if err := r.Client.Get(context.Background(), *inventory.ConnectionSecretObjectKey(), secret); err != nil {
-		return nil, err
+		return nil, "", err
+	}
+
+	accessList, err := parseIPAccessList(data.IPAccessList)
+	if err != nil {
+		return nil, "", err
 	}
 	return &v1.AtlasProject{
 		ObjectMeta: metav1.ObjectMeta{
@@ -358,17 +414,14 @@ func (r *MongoDBAtlasInstanceReconciler) getAtlasProjectForCreation(instance *db
 				DBaaSInstanceNameLabel:      instance.Name,
 				DBaaSInstanceNamespaceLabel: instance.Namespace,
 			},
-			Annotations: map[string]string{
-				// Keep the project in Atlas when local k8s AtlasProject resource is deleted
-				customresource.ResourcePolicyAnnotation: customresource.ResourcePolicyKeep,
-			},
+			Annotations: annotations,
 		},
 		Spec: v1.AtlasProjectSpec{
 			Name:                data.ProjectName,
 			ConnectionSecret:    &common.ResourceRef{Name: inventory.Spec.CredentialsRef.Name},
-			ProjectIPAccessList: []project.IPAccessList{},
+			ProjectIPAccessList: accessList,
 		},
-	}, nil
+	}, projectID, nil
 }
 
 func (r *MongoDBAtlasInstanceReconciler) annotateAtlasDeployment(cx context.Context, atlasDeployment *v1.AtlasDeployment) error {
@@ -468,12 +521,19 @@ func getInstanceData(log *zap.SugaredLogger, inst *dbaas.MongoDBAtlasInstance) (
 		instanceSizeName = "M0"
 	}
 
+	accessIP, ok := inst.Spec.OtherInstanceParams[dbaas.IPAccessListKey]
+	if !ok || len(strings.TrimSpace(accessIP)) == 0 {
+		accessIP = "0.0.0.0/0"
+		log.Infof("%v is missing, default IP %s is used to allow access from everywhere.", dbaas.IPAccessListKey, accessIP)
+	}
+
 	return &InstanceData{
 		ProjectName:      strings.TrimSpace(projectName),
 		ClusterName:      name,
 		ProviderName:     provider,
 		RegionName:       region,
 		InstanceSizeName: strings.TrimSpace(instanceSizeName),
+		IPAccessList:     strings.TrimSpace(accessIP),
 	}, nil
 }
 
@@ -520,4 +580,27 @@ func setInstanceStatusWithDeploymentInfo(atlasClient *mongodbatlas.Client, inst 
 		dbaas.SetInstanceCondition(inst, dbaasv1alpha1.DBaaSInstanceProviderSyncType, metav1.ConditionFalse, string(dbaasv1alpha1.InstancePhasePending), "Waiting for cluster creation to start")
 	}
 	return false, result
+}
+
+func parseIPAccessList(accessListStr string) ([]project.IPAccessList, error) {
+	accessList := []project.IPAccessList{}
+	ranges := strings.Split(accessListStr, " ")
+	for _, r := range ranges {
+		ip := net.ParseIP(r)
+		if ip != nil {
+			accessList = append(accessList, project.IPAccessList{IPAddress: r})
+		} else {
+			_, _, err := net.ParseCIDR(r)
+			if err == nil {
+				accessList = append(accessList, project.IPAccessList{CIDRBlock: r})
+			} else {
+				return nil, fmt.Errorf("parsing error for ip or ip range: %s", r)
+			}
+		}
+	}
+	return accessList, nil
+}
+
+func isReconcilationSkipped(atlasProject *v1.AtlasProject) bool {
+	return atlasProject.Annotations[customresource.ReconciliationPolicyAnnotation] == customresource.ReconciliationPolicySkip
 }

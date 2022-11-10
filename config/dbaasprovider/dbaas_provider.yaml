@@ -64,3 +64,8 @@ spec:
       type: string
       required: false
       defaultValue: M0
+    - name: ipAccessList
+      displayName: List of IP Addresses or Ranges (Space Separated) to Access the Cluster
+      type: string
+      required: false
+      defaultValue: "0.0.0.0/0"
