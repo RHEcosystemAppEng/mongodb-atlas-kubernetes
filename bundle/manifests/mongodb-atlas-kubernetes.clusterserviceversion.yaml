@@ -122,42 +122,42 @@ metadata:
           }
         },
         {
-          "apiVersion": "dbaas.redhat.com/v1alpha1",
+          "apiVersion": "dbaas.redhat.com/v1beta1",
           "kind": "MongoDBAtlasConnection",
           "metadata": {
             "name": "test-connection",
             "namespace": "my-namespace"
           },
           "spec": {
-            "instanceID": "606b2ffbc9a90e310e642482",
             "inventoryRef": {
               "name": "test-inventory",
               "namespace": "mongodb-atlas-system"
-            }
+            },
+            "serviceID": "606b2ffbc9a90e310e642482"
           }
         },
         {
-          "apiVersion": "dbaas.redhat.com/v1alpha1",
+          "apiVersion": "dbaas.redhat.com/v1beta1",
           "kind": "MongoDBAtlasInstance",
           "metadata": {
             "name": "test-instance"
           },
           "spec": {
-            "cloudProvider": "aws",
-            "cloudRegion": "US_EAST_1",
             "inventoryRef": {
               "name": "test-inventory",
               "namespace": "mongodb-atlas-system"
             },
-            "name": "my-cluster-free",
-            "otherInstanceParams": {
-              "instanceSizeName": "M0",
-              "projectName": "my-atlas-project-free"
+            "provisioningParameters": {
+              "cloudProvider": "AWS",
+              "machineType": "M0",
+              "name": "my-atlas-cluster-free",
+              "plan": "FREETRIAL",
+              "regions": "us-east-1"
             }
           }
         },
         {
-          "apiVersion": "dbaas.redhat.com/v1alpha1",
+          "apiVersion": "dbaas.redhat.com/v1beta1",
           "kind": "MongoDBAtlasInventory",
           "metadata": {
             "name": "test-inventory"
@@ -222,19 +222,19 @@ spec:
       displayName: Mongo DBAtlas Connection
       kind: MongoDBAtlasConnection
       name: mongodbatlasconnections.dbaas.redhat.com
-      version: v1alpha1
+      version: v1beta1
     - description: MongoDBAtlasInstance is the Schema for the MongoDBAtlasInstance
         API
       displayName: Mongo DBAtlas Instance
       kind: MongoDBAtlasInstance
       name: mongodbatlasinstances.dbaas.redhat.com
-      version: v1alpha1
+      version: v1beta1
     - description: MongoDBAtlasInventory is the Schema for the MongoDBAtlasInventory
         API
       displayName: Mongo DBAtlas Inventory
       kind: MongoDBAtlasInventory
       name: mongodbatlasinventories.dbaas.redhat.com
-      version: v1alpha1
+      version: v1beta1
   description: |
     The MongoDB Atlas Operator provides a native integration between the Kubernetes orchestration platform and MongoDB Atlas —
     the only multi-cloud document database service that gives you the versatility you need to build sophisticated and resilient applications that can adapt to changing customer demands and market trends.

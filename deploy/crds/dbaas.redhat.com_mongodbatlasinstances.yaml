@@ -1,11 +1,13 @@
-
----
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.4.1
+    controller-gen.kubebuilder.io/version: v0.9.2
   creationTimestamp: null
+  labels:
+    app.kubernetes.io/component: controller
+    app.kubernetes.io/instance: mongodb-atlas-kubernetes-operator
+    app.kubernetes.io/name: mongodb-atlas-kubernetes-operator
   name: mongodbatlasinstances.dbaas.redhat.com
 spec:
   group: dbaas.redhat.com
@@ -16,7 +18,7 @@ spec:
     singular: mongodbatlasinstance
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - name: v1beta1
     schema:
       openAPIV3Schema:
         description: MongoDBAtlasInstance is the Schema for the MongoDBAtlasInstance
@@ -35,55 +37,45 @@ spec:
           metadata:
             type: object
           spec:
-            description: DBaaSInstanceSpec defines the desired state of DBaaSInstance
+            description: DBaaSInstanceSpec defines the desired state of a DBaaSInstance
+              object.
             properties:
-              cloudProvider:
-                description: Identifies the desired cloud infrastructure provider
-                type: string
-              cloudRegion:
-                description: Identifies the requested deployment region within the
-                  cloud provider (e.g. us-east-1)
-                type: string
               inventoryRef:
-                description: A reference to the relevant DBaaSInventory CR
+                description: A reference to the relevant DBaaSInventory custom resource
+                  (CR).
                 properties:
                   name:
-                    description: The name for object of known type
+                    description: The name for object of a known type.
                     type: string
                   namespace:
-                    description: The namespace where object of known type is stored
+                    description: The namespace where an object of a known type is
+                      stored.
                     type: string
                 required:
                 - name
                 type: object
-              name:
-                description: The name of this instance in the database service
-                type: string
-              otherInstanceParams:
+              provisioningParameters:
                 additionalProperties:
                   type: string
-                description: Any other provider-specific parameters related to the
-                  instance provisioning
+                description: Parameters with values used for provisioning.
                 type: object
             required:
             - inventoryRef
-            - name
             type: object
           status:
-            description: DBaaSInstanceStatus defines the observed state of DBaaSInstance
+            description: DBaaSInstanceStatus defines the observed state of a DBaaSInstance.
             properties:
               conditions:
                 items:
                   description: "Condition contains details for one aspect of the current
                     state of this API Resource. --- This struct is intended for direct
                     use as an array at the field path .status.conditions.  For example,
-                    type FooStatus struct{     // Represents the observations of a
-                    foo's current state.     // Known .status.conditions.type are:
-                    \"Available\", \"Progressing\", and \"Degraded\"     // +patchMergeKey=type
-                    \    // +patchStrategy=merge     // +listType=map     // +listMapKey=type
-                    \    Conditions []metav1.Condition `json:\"conditions,omitempty\"
-                    patchStrategy:\"merge\" patchMergeKey:\"type\" protobuf:\"bytes,1,rep,name=conditions\"`
-                    \n     // other fields }"
+                    \n type FooStatus struct{ // Represents the observations of a
+                    foo's current state. // Known .status.conditions.type are: \"Available\",
+                    \"Progressing\", and \"Degraded\" // +patchMergeKey=type // +patchStrategy=merge
+                    // +listType=map // +listMapKey=type Conditions []metav1.Condition
+                    `json:\"conditions,omitempty\" patchStrategy:\"merge\" patchMergeKey:\"type\"
+                    protobuf:\"bytes,1,rep,name=conditions\"` \n // other fields }"
                   properties:
                     lastTransitionTime:
                       description: lastTransitionTime is the last time the condition
@@ -142,19 +134,36 @@ spec:
                   type: object
                 type: array
               instanceID:
-                description: The ID of the instance,
+                description: A provider-specific identifier for this instance in the
+                  database service. It can contain one or more pieces of information
+                  used by the provider's operator to identify the instance on the
+                  database service.
                 type: string
               instanceInfo:
                 additionalProperties:
                   type: string
                 description: Any other provider-specific information related to this
-                  instance
+                  instance.
                 type: object
               phase:
-                description: Represents the cluster provisioning phase Pending - provisioning
-                  not yet started Creating - provisioning in progress Updating - cluster
-                  updating in progress Deleting - cluster deletion in progress Deleted
-                  - cluster has been deleted Ready - cluster provisioning complete
+                default: Unknown
+                description: 'Represents the following cluster provisioning phases.
+                  Unknown: An unknown cluster provisioning status. Pending: In the
+                  queue, waiting for provisioning to start. Creating: Provisioning
+                  is in progress. Updating: Updating the cluster is in progress. Deleting:
+                  Cluster deletion is in progress. Deleted: Cluster has been deleted.
+                  Ready: Cluster provisioning is done. Error: Cluster provisioning
+                  error. Failed: Cluster provisioning failed.'
+                enum:
+                - Unknown
+                - Pending
+                - Creating
+                - Updating
+                - Deleting
+                - Deleted
+                - Ready
+                - Error
+                - Failed
                 type: string
             required:
             - instanceID
@@ -169,5 +178,5 @@ status:
   acceptedNames:
     kind: ""
     plural: ""
-  conditions: []
-  storedVersions: []
+  conditions: null
+  storedVersions: null

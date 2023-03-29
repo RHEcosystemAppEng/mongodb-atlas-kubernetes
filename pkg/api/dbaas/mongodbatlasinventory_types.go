@@ -17,7 +17,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	dbaasv1alpha1 "github.com/RHEcosystemAppEng/dbaas-operator/api/v1alpha1"
+	dbaasv1beta1 "github.com/RHEcosystemAppEng/dbaas-operator/api/v1beta1"
 
 	kube "github.com/mongodb/mongodb-atlas-kubernetes/pkg/util/kube"
 )
@@ -26,15 +26,15 @@ import (
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +groupName:=dbaas.redhat.com
-// +versionName:=v1alpha1
+// +versionName:=v1beta1
 
 // MongoDBAtlasInventory is the Schema for the MongoDBAtlasInventory API
 type MongoDBAtlasInventory struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   dbaasv1alpha1.DBaaSInventorySpec   `json:"spec,omitempty"`
-	Status dbaasv1alpha1.DBaaSInventoryStatus `json:"status,omitempty"`
+	Spec   dbaasv1beta1.DBaaSInventorySpec   `json:"spec,omitempty"`
+	Status dbaasv1beta1.DBaaSInventoryStatus `json:"status,omitempty"`
 }
 
 //+kubebuilder:object:root=true

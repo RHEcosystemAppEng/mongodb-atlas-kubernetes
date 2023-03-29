@@ -16,22 +16,22 @@ package dbaas
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	dbaasv1alpha1 "github.com/RHEcosystemAppEng/dbaas-operator/api/v1alpha1"
+	dbaasv1beta1 "github.com/RHEcosystemAppEng/dbaas-operator/api/v1beta1"
 )
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +groupName:=dbaas.redhat.com
-// +versionName:=v1alpha1
+// +versionName:=v1beta1
 
 // MongoDBAtlasInstance is the Schema for the MongoDBAtlasInstance API
 type MongoDBAtlasInstance struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   dbaasv1alpha1.DBaaSInstanceSpec   `json:"spec,omitempty"`
-	Status dbaasv1alpha1.DBaaSInstanceStatus `json:"status,omitempty"`
+	Spec   dbaasv1beta1.DBaaSInstanceSpec   `json:"spec,omitempty"`
+	Status dbaasv1beta1.DBaaSInstanceStatus `json:"status,omitempty"`
 }
 
 //+kubebuilder:object:root=true

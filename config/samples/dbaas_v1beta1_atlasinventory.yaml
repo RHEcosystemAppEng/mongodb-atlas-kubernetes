@@ -1,4 +1,4 @@
-apiVersion: dbaas.redhat.com/v1alpha1
+apiVersion: dbaas.redhat.com/v1beta1
 kind: MongoDBAtlasInventory
 metadata:
   name: test-inventory

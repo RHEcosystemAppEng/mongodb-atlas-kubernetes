@@ -1,8 +1,8 @@
 [
     {
-      "instanceID":"70b7a72f4877d05880cNoSrv",
-      "name":"testb",
-      "instanceInfo":{
+      "serviceID":"70b7a72f4877d05880cNoSrv",
+      "serviceName":"testb",
+      "serviceInfo":{
          "instanceSizeName":"M10",
          "state":"Creating",
          "projectID":"608df5e652e1944293e8584a",

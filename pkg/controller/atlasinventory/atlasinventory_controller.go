@@ -33,7 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	dbaasv1alpha1 "github.com/RHEcosystemAppEng/dbaas-operator/api/v1alpha1"
+	dbaasv1beta1 "github.com/RHEcosystemAppEng/dbaas-operator/api/v1beta1"
 	"go.mongodb.org/atlas/mongodbatlas"
 
 	dbaas "github.com/mongodb/mongodb-atlas-kubernetes/pkg/api/dbaas"
@@ -93,7 +93,7 @@ func (r *MongoDBAtlasInventoryReconciler) Reconcile(ctx context.Context, req ctr
 
 	if secretKey == nil {
 		result := workflow.Terminate(workflow.MongoDBAtlasInventoryInputError, "Secret name for atlas credentials is missing")
-		dbaas.SetInventoryCondition(inventory, dbaasv1alpha1.DBaaSInventoryProviderSyncType, metav1.ConditionFalse, string(result.Reason()), result.Message())
+		dbaas.SetInventoryCondition(inventory, dbaasv1beta1.DBaaSInventoryProviderSyncType, metav1.ConditionFalse, string(result.Reason()), result.Message())
 		return result.ReconcileResult(), nil
 	} else {
 		// Note, that we are not watching the global connection secret - seems there is no point in reconciling all
@@ -104,7 +104,7 @@ func (r *MongoDBAtlasInventoryReconciler) Reconcile(ctx context.Context, req ctr
 	atlasConn, err := atlas.ReadConnection(log, r.Client, r.GlobalAPISecret, inventory.ConnectionSecretObjectKey())
 	if err != nil {
 		result := workflow.Terminate(workflow.MongoDBAtlasInventoryInputError, err.Error())
-		dbaas.SetInventoryCondition(inventory, dbaasv1alpha1.DBaaSInventoryProviderSyncType, metav1.ConditionFalse, string(result.Reason()), result.Message())
+		dbaas.SetInventoryCondition(inventory, dbaasv1beta1.DBaaSInventoryProviderSyncType, metav1.ConditionFalse, string(result.Reason()), result.Message())
 		return result.ReconcileResult(), nil
 	}
 
@@ -113,7 +113,7 @@ func (r *MongoDBAtlasInventoryReconciler) Reconcile(ctx context.Context, req ctr
 		cl, err := atlas.Client(r.AtlasDomain, atlasConn, log)
 		if err != nil {
 			result := workflow.Terminate(workflow.MongoDBAtlasConnectionBackendError, err.Error())
-			dbaas.SetInventoryCondition(inventory, dbaasv1alpha1.DBaaSInventoryProviderSyncType, metav1.ConditionFalse, string(result.Reason()), result.Message())
+			dbaas.SetInventoryCondition(inventory, dbaasv1beta1.DBaaSInventoryProviderSyncType, metav1.ConditionFalse, string(result.Reason()), result.Message())
 			return result.ReconcileResult(), nil
 		}
 		atlasClient = &cl
@@ -121,13 +121,13 @@ func (r *MongoDBAtlasInventoryReconciler) Reconcile(ctx context.Context, req ctr
 
 	inventoryList, result := discoverInstances(atlasClient)
 	if !result.IsOk() {
-		dbaas.SetInventoryCondition(inventory, dbaasv1alpha1.DBaaSInventoryProviderSyncType, metav1.ConditionFalse, string(result.Reason()), result.Message())
+		dbaas.SetInventoryCondition(inventory, dbaasv1beta1.DBaaSInventoryProviderSyncType, metav1.ConditionFalse, string(result.Reason()), result.Message())
 		return result.ReconcileResult(), nil
 	}
 
 	// Update the status
-	dbaas.SetInventoryCondition(inventory, dbaasv1alpha1.DBaaSInventoryProviderSyncType, metav1.ConditionTrue, string(workflow.MongoDBAtlasInventorySyncOK), "Spec sync OK")
-	inventory.Status.Instances = inventoryList
+	dbaas.SetInventoryCondition(inventory, dbaasv1beta1.DBaaSInventoryProviderSyncType, metav1.ConditionTrue, string(workflow.MongoDBAtlasInventorySyncOK), "Spec sync OK")
+	inventory.Status.DatabaseServices = inventoryList
 	return ctrl.Result{}, nil
 }
 

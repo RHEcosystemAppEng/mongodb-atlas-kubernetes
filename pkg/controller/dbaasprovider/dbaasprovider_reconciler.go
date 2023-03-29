@@ -25,7 +25,7 @@ import (
 	"os"
 	"time"
 
-	dbaasoperator "github.com/RHEcosystemAppEng/dbaas-operator/api/v1alpha1"
+	dbaasoperator "github.com/RHEcosystemAppEng/dbaas-operator/api/v1beta1"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/apps/v1"
 	rbac "k8s.io/api/rbac/v1"
@@ -60,7 +60,7 @@ type DBaaSProviderReconciler struct {
 	operatorNameVersion      string
 	operatorInstallNamespace string
 	providerFile             string
-	cdrChecker               func(groupVersion, kind string) (bool, error)
+	crdChecker               func(groupVersion, kind string) (bool, error)
 }
 
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch
@@ -86,16 +86,17 @@ func (r *DBaaSProviderReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{}, err
 	}
 
-	if r.cdrChecker == nil {
-		r.cdrChecker = r.checkCrdInstalled
+	if r.crdChecker == nil {
+		r.crdChecker = r.checkCrdInstalled
 	}
-	isCrdInstalled, err := r.cdrChecker(dbaasoperator.GroupVersion.String(), dbaasProviderKind)
+
+	isCrdInstalled, err := r.crdChecker(dbaasoperator.GroupVersion.String(), dbaasProviderKind)
 	if err != nil {
-		log.Error(err, "error discovering GVK")
+		log.Error(err, "error discovering OpenShift Database Access DBaaSProvider CRD")
 		return ctrl.Result{}, err
 	}
 	if !isCrdInstalled {
-		log.Info("CRD not found, requeueing with rate limiter")
+		log.Info("OpenShift Database Access DBaaSProvider CRD not found, requeueing with rate limiter")
 		// returning with 'Requeue: true' will invoke our custom rate limiter seen in SetupWithManager below
 		return ctrl.Result{Requeue: true}, nil
 	}
@@ -170,8 +171,8 @@ func (r *DBaaSProviderReconciler) getAtlasProviderCR(clusterRoleList *rbac.Clust
 			Kind:               "ClusterRole",
 			UID:                clusterRoleList.Items[0].GetUID(), // doesn't really matter which 'item' we use
 			Name:               clusterRoleList.Items[0].Name,
-			Controller:         pointer.BoolPtr(true),
-			BlockOwnerDeletion: pointer.BoolPtr(false),
+			Controller:         pointer.Bool(true),
+			BlockOwnerDeletion: pointer.Bool(false),
 		},
 	}
 	return instance, nil

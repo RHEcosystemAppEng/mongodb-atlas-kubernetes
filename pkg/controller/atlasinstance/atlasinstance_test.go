@@ -24,7 +24,7 @@ import (
 	"reflect"
 	"testing"
 
-	dbaasv1alpha1 "github.com/RHEcosystemAppEng/dbaas-operator/api/v1alpha1"
+	dbaasv1beta1 "github.com/RHEcosystemAppEng/dbaas-operator/api/v1beta1"
 	"github.com/fgrosse/zaptest"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
@@ -78,7 +78,7 @@ func TestGetInstanceData(t *testing.T) {
 			expProviderName:     "GCP",
 			expRegionName:       "GCP_REGION",
 			expInstanceSizeName: "M10",
-			expErrMsg:           "missing clusterName",
+			expErrMsg:           "parameter name is required",
 		},
 		"MissingProjectName": {
 			deploymentName:      "myDeployment",
@@ -89,7 +89,7 @@ func TestGetInstanceData(t *testing.T) {
 			expProviderName:     "GCP",
 			expRegionName:       "GCP_REGION",
 			expInstanceSizeName: "M10",
-			expErrMsg:           "missing projectName",
+			expErrMsg:           "parameter teamProject is required",
 		},
 		"UseDefaultProvider": {
 			deploymentName:      "myDeployment",
@@ -130,24 +130,24 @@ func TestGetInstanceData(t *testing.T) {
 		t.Run(tcName, func(t *testing.T) {
 			instance := &dbaas.MongoDBAtlasInstance{
 				TypeMeta: metav1.TypeMeta{
-					APIVersion: "dbaas.redhat.com/v1alpha1",
+					APIVersion: "dbaas.redhat.com/v1beta1",
 					Kind:       "MongoDBAtlasInstance",
 				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      fmt.Sprintf("instance-%s", tcName),
 					Namespace: "dbaas-operator",
 				},
-				Spec: dbaasv1alpha1.DBaaSInstanceSpec{
-					InventoryRef: dbaasv1alpha1.NamespacedName{
+				Spec: dbaasv1beta1.DBaaSInstanceSpec{
+					InventoryRef: dbaasv1beta1.NamespacedName{
 						Name:      fmt.Sprintf("inventory-%s", tcName),
 						Namespace: "dbaas-operator",
 					},
-					Name:          tc.deploymentName,
-					CloudProvider: tc.providerName,
-					CloudRegion:   tc.regionName,
-					OtherInstanceParams: map[string]string{
-						"projectName":      tc.projectName,
-						"instanceSizeName": tc.instanceSizeName,
+					ProvisioningParameters: map[dbaasv1beta1.ProvisioningParameterType]string{
+						dbaasv1beta1.ProvisioningName:          tc.deploymentName,
+						dbaasv1beta1.ProvisioningCloudProvider: tc.providerName,
+						dbaasv1beta1.ProvisioningRegions:       tc.regionName,
+						dbaasv1beta1.ProvisioningTeamProject:   tc.projectName,
+						dbaasv1beta1.ProvisioningMachineType:   tc.instanceSizeName,
 					},
 				},
 			}
@@ -254,7 +254,7 @@ func TestSetInstanceStatusWithDeploymentInfo(t *testing.T) {
 		projectName            string
 		deploymentCRStatus     corev1.ConditionStatus
 		expErrMsg              string
-		expPhase               dbaasv1alpha1.DBaasInstancePhase
+		expPhase               dbaasv1beta1.DBaasInstancePhase
 		expStatus              string
 		expStateChangedInAtlas bool
 	}{
@@ -263,7 +263,7 @@ func TestSetInstanceStatusWithDeploymentInfo(t *testing.T) {
 			projectName:            "myproject",
 			deploymentCRStatus:     corev1.ConditionFalse,
 			expErrMsg:              "",
-			expPhase:               dbaasv1alpha1.InstancePhaseCreating,
+			expPhase:               dbaasv1beta1.InstancePhaseCreating,
 			expStatus:              "False",
 			expStateChangedInAtlas: false,
 		},
@@ -272,7 +272,7 @@ func TestSetInstanceStatusWithDeploymentInfo(t *testing.T) {
 			projectName:            "myproject",
 			deploymentCRStatus:     corev1.ConditionTrue,
 			expErrMsg:              "",
-			expPhase:               dbaasv1alpha1.InstancePhaseCreating,
+			expPhase:               dbaasv1beta1.InstancePhaseCreating,
 			expStatus:              "False",
 			expStateChangedInAtlas: true,
 		},
@@ -281,7 +281,7 @@ func TestSetInstanceStatusWithDeploymentInfo(t *testing.T) {
 			projectName:            "myproject",
 			deploymentCRStatus:     corev1.ConditionTrue,
 			expErrMsg:              "",
-			expPhase:               dbaasv1alpha1.InstancePhaseReady,
+			expPhase:               dbaasv1beta1.InstancePhaseReady,
 			expStatus:              "True",
 			expStateChangedInAtlas: false,
 		},
@@ -335,20 +335,20 @@ func TestSetInstanceStatusWithDeploymentInfo(t *testing.T) {
 					Name:      "my-instance",
 					Namespace: namespace,
 				},
-				Spec: dbaasv1alpha1.DBaaSInstanceSpec{
-					InventoryRef: dbaasv1alpha1.NamespacedName{
+				Spec: dbaasv1beta1.DBaaSInstanceSpec{
+					InventoryRef: dbaasv1beta1.NamespacedName{
 						Name:      "my-inventory",
 						Namespace: namespace,
 					},
-					Name: tc.deploymentName,
-					OtherInstanceParams: map[string]string{
-						"projectName": tc.projectName,
+					ProvisioningParameters: map[dbaasv1beta1.ProvisioningParameterType]string{
+						dbaasv1beta1.ProvisioningName:        tc.deploymentName,
+						dbaasv1beta1.ProvisioningTeamProject: tc.projectName,
 					},
 				},
 			}
 			stateChangedInAtlas, result := setInstanceStatusWithDeploymentInfo(atlasClient, inst, atlasDeployment, tc.projectName)
 			if len(tc.expErrMsg) == 0 {
-				cond := dbaas.GetInstanceCondition(inst, dbaasv1alpha1.DBaaSInstanceProviderSyncType)
+				cond := dbaas.GetInstanceCondition(inst, dbaasv1beta1.DBaaSInstanceProviderSyncType)
 				assert.NotNil(t, cond)
 				assert.True(t, result.IsOk())
 				assert.Equal(t, inst.Status.Phase, tc.expPhase)
@@ -384,20 +384,20 @@ func TestAtlasInstanceReconcile(t *testing.T) {
 	tcName := "mytest"
 	deploymentName := "mydeploymentnew"
 	projectName := "myproject"
-	expectedPhase := dbaasv1alpha1.InstancePhasePending
+	expectedPhase := dbaasv1beta1.InstancePhasePending
 	expectedErrString := "CLUSTER_NOT_FOUND"
 	expectedRequeue := true
 	inventory := &dbaas.MongoDBAtlasInventory{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "dbaas.redhat.com/v1alpha1",
+			APIVersion: "dbaas.redhat.com/v1beta1",
 			Kind:       "MongoDBAtlasInventory",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("inventory-%s", tcName),
 			Namespace: "dbaas-operator",
 		},
-		Spec: dbaasv1alpha1.DBaaSInventorySpec{
-			CredentialsRef: &dbaasv1alpha1.LocalObjectReference{
+		Spec: dbaasv1beta1.DBaaSInventorySpec{
+			CredentialsRef: &dbaasv1beta1.LocalObjectReference{
 				Name: fmt.Sprintf("secret-%s", tcName),
 			},
 		},
@@ -422,21 +422,21 @@ func TestAtlasInstanceReconcile(t *testing.T) {
 
 	instance := &dbaas.MongoDBAtlasInstance{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "dbaas.redhat.com/v1alpha1",
+			APIVersion: "dbaas.redhat.com/v1beta1",
 			Kind:       "MongoDBAtlasInstance",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("instance-%s", tcName),
 			Namespace: "dbaas-operator",
 		},
-		Spec: dbaasv1alpha1.DBaaSInstanceSpec{
-			Name: deploymentName,
-			InventoryRef: dbaasv1alpha1.NamespacedName{
+		Spec: dbaasv1beta1.DBaaSInstanceSpec{
+			InventoryRef: dbaasv1beta1.NamespacedName{
 				Name:      inventory.Name,
 				Namespace: inventory.Namespace,
 			},
-			OtherInstanceParams: map[string]string{
-				"projectName": projectName,
+			ProvisioningParameters: map[dbaasv1beta1.ProvisioningParameterType]string{
+				dbaasv1beta1.ProvisioningName:        deploymentName,
+				dbaasv1beta1.ProvisioningTeamProject: projectName,
 			},
 		},
 	}

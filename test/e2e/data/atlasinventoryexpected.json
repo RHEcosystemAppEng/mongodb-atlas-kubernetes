@@ -1,8 +1,8 @@
 [
     {
-       "instanceID":"70b7a72f4877d05880c487ef",
-       "name":"testb",
-       "instanceInfo":{
+       "serviceID":"70b7a72f4877d05880c487ef",
+       "serviceName":"testb",
+       "serviceInfo":{
           "connectionStringsStandardSrv":"mongodb+srv://testb.fffff.mongodb.net",
           "instanceSizeName":"M10",
           "state":"Ready",
@@ -13,9 +13,9 @@
        }
     },
     {
-       "instanceID":"60b7a72f4877d05880c487d2",
-       "name":"testa",
-       "instanceInfo":{
+       "serviceID":"60b7a72f4877d05880c487d2",
+       "serviceName":"testa",
+       "serviceInfo":{
           "connectionStringsStandardSrv":"mongodb+srv://testa.ccccc.mongodb.net",
           "instanceSizeName":"M10",
           "state":"Ready",

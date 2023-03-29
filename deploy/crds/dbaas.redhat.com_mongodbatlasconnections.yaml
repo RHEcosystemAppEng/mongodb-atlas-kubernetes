@@ -1,11 +1,13 @@
-
----
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.4.1
+    controller-gen.kubebuilder.io/version: v0.9.2
   creationTimestamp: null
+  labels:
+    app.kubernetes.io/component: controller
+    app.kubernetes.io/instance: mongodb-atlas-kubernetes-operator
+    app.kubernetes.io/name: mongodb-atlas-kubernetes-operator
   name: mongodbatlasconnections.dbaas.redhat.com
 spec:
   group: dbaas.redhat.com
@@ -16,7 +18,7 @@ spec:
     singular: mongodbatlasconnection
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - name: v1beta1
     schema:
       openAPIV3Schema:
         description: MongoDBAtlasConnection is the Schema for the MongoDBAtlasConnections
@@ -35,43 +37,63 @@ spec:
           metadata:
             type: object
           spec:
-            description: DBaaSConnectionSpec defines the desired state of DBaaSConnection
+            description: DBaaSConnectionSpec defines the desired state of a DBaaSConnection
+              object.
             properties:
-              instanceID:
-                description: The ID of the instance to connect to, as seen in the
-                  Status of the referenced DBaaSInventory
+              databaseServiceID:
+                description: The ID of the database service to connect to, as seen
+                  in the status of the referenced DBaaSInventory.
                 type: string
-              inventoryRef:
-                description: A reference to the relevant DBaaSInventory CR
+              databaseServiceRef:
+                description: A reference to the database service CR used, if the DatabaseServiceID
+                  is not specified.
                 properties:
                   name:
-                    description: The name for object of known type
+                    description: The name for object of a known type.
                     type: string
                   namespace:
-                    description: The namespace where object of known type is stored
+                    description: The namespace where an object of a known type is
+                      stored.
+                    type: string
+                required:
+                - name
+                type: object
+              databaseServiceType:
+                description: The type of the database service to connect to, as seen
+                  in the status of the referenced DBaaSInventory.
+                type: string
+              inventoryRef:
+                description: A reference to the relevant DBaaSInventory custom resource
+                  (CR).
+                properties:
+                  name:
+                    description: The name for object of a known type.
+                    type: string
+                  namespace:
+                    description: The namespace where an object of a known type is
+                      stored.
                     type: string
                 required:
                 - name
                 type: object
             required:
-            - instanceID
             - inventoryRef
             type: object
           status:
-            description: DBaaSConnectionStatus defines the observed state of DBaaSConnection
+            description: DBaaSConnectionStatus defines the observed state of a DBaaSConnection
+              object.
             properties:
               conditions:
                 items:
                   description: "Condition contains details for one aspect of the current
                     state of this API Resource. --- This struct is intended for direct
                     use as an array at the field path .status.conditions.  For example,
-                    type FooStatus struct{     // Represents the observations of a
-                    foo's current state.     // Known .status.conditions.type are:
-                    \"Available\", \"Progressing\", and \"Degraded\"     // +patchMergeKey=type
-                    \    // +patchStrategy=merge     // +listType=map     // +listMapKey=type
-                    \    Conditions []metav1.Condition `json:\"conditions,omitempty\"
-                    patchStrategy:\"merge\" patchMergeKey:\"type\" protobuf:\"bytes,1,rep,name=conditions\"`
-                    \n     // other fields }"
+                    \n type FooStatus struct{ // Represents the observations of a
+                    foo's current state. // Known .status.conditions.type are: \"Available\",
+                    \"Progressing\", and \"Degraded\" // +patchMergeKey=type // +patchStrategy=merge
+                    // +listType=map // +listMapKey=type Conditions []metav1.Condition
+                    `json:\"conditions,omitempty\" patchStrategy:\"merge\" patchMergeKey:\"type\"
+                    protobuf:\"bytes,1,rep,name=conditions\"` \n // other fields }"
                   properties:
                     lastTransitionTime:
                       description: lastTransitionTime is the last time the condition
@@ -130,23 +152,25 @@ spec:
                   type: object
                 type: array
               connectionInfoRef:
-                description: A ConfigMap holding non-sensitive information needed
-                  for connecting to the DB instance
+                description: A ConfigMap object holding non-sensitive information
+                  for connecting to the database instance.
                 properties:
                   name:
                     description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
                       TODO: Add other useful fields. apiVersion, kind, uid?'
                     type: string
                 type: object
+                x-kubernetes-map-type: atomic
               credentialsRef:
-                description: Secret holding the credentials needed for accessing the
-                  DB instance
+                description: The secret holding account credentials for accessing
+                  the database instance.
                 properties:
                   name:
                     description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
                       TODO: Add other useful fields. apiVersion, kind, uid?'
                     type: string
                 type: object
+                x-kubernetes-map-type: atomic
             type: object
         type: object
     served: true
@@ -157,5 +181,5 @@ status:
   acceptedNames:
     kind: ""
     plural: ""
-  conditions: []
-  storedVersions: []
+  conditions: null
+  storedVersions: null

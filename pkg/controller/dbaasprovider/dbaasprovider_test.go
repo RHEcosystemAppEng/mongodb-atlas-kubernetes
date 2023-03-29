@@ -35,7 +35,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	dbaasoperator "github.com/RHEcosystemAppEng/dbaas-operator/api/v1alpha1"
+	dbaasoperator "github.com/RHEcosystemAppEng/dbaas-operator/api/v1beta1"
 
 	dbaas "github.com/mongodb/mongodb-atlas-kubernetes/pkg/api/dbaas"
 	mdbv1 "github.com/mongodb/mongodb-atlas-kubernetes/pkg/api/v1"
@@ -56,17 +56,17 @@ func TestDBaaSProviderCreate(t *testing.T) {
 		expectedErrString string
 	}{
 		"Nominal": {
-			crdChecker:        cdrCheckerOK,
+			crdChecker:        crdCheckerOK,
 			expectedErrString: "",
 			expectedRequeue:   false,
 		},
 		"CRDCheckFail": {
-			crdChecker:        cdrCheckerFail,
+			crdChecker:        crdCheckerFail,
 			expectedErrString: "failed to check DBaaSProvider CRD",
 			expectedRequeue:   false,
 		},
 		"CRDCheckNotFound": {
-			crdChecker:        cdrCheckerNotFound,
+			crdChecker:        crdCheckerNotFound,
 			expectedErrString: "",
 			expectedRequeue:   true,
 		},
@@ -81,7 +81,7 @@ func TestDBaaSProviderCreate(t *testing.T) {
 
 			gvk := schema.GroupVersionKind{
 				Group:   "dbaas.redhat.com",
-				Version: "v1alpha1",
+				Version: "v1beta1",
 				Kind:    "DBaaSProvider",
 			}
 			clusterrole := &rbac.ClusterRole{
@@ -120,7 +120,7 @@ func TestDBaaSProviderCreate(t *testing.T) {
 				Clientset:           clientSet,
 				Scheme:              s,
 				Log:                 logger.Sugar(),
-				cdrChecker:          tc.crdChecker,
+				crdChecker:          tc.crdChecker,
 				operatorNameVersion: mongDBAtlasOperatorLabel,
 				providerFile:        "../../../config/dbaasprovider/dbaas_provider.yaml",
 			}
@@ -145,12 +145,12 @@ func TestDBaaSProviderCreate(t *testing.T) {
 }
 
 // Mock functions to to check DBaaSProvider CRD
-func cdrCheckerOK(groupVersion, kind string) (bool, error) {
+func crdCheckerOK(groupVersion, kind string) (bool, error) {
 	return true, nil
 }
-func cdrCheckerNotFound(groupVersion, kind string) (bool, error) {
+func crdCheckerNotFound(groupVersion, kind string) (bool, error) {
 	return false, nil
 }
-func cdrCheckerFail(groupVersion, kind string) (bool, error) {
+func crdCheckerFail(groupVersion, kind string) (bool, error) {
 	return false, errors.New("failed to check DBaaSProvider CRD:")
 }

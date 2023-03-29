@@ -36,7 +36,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	dbaasv1alpha1 "github.com/RHEcosystemAppEng/dbaas-operator/api/v1alpha1"
+	dbaasv1beta1 "github.com/RHEcosystemAppEng/dbaas-operator/api/v1beta1"
 	"go.mongodb.org/atlas/mongodbatlas"
 
 	"github.com/mongodb/mongodb-atlas-kubernetes/pkg/api/dbaas"
@@ -114,7 +114,7 @@ func TestDiscoverInstancesNominal(t *testing.T) {
 
 	instances, res := discoverInstances(client)
 	assert.True(t, res.IsOk())
-	instancesExpected := []dbaasv1alpha1.Instance{}
+	instancesExpected := []dbaasv1beta1.DatabaseService{}
 	dataExpected, err := ioutil.ReadFile("../../../test/e2e/data/atlasinventoryexpected.json")
 	assert.NoError(t, err)
 	err = json.Unmarshal(dataExpected, &instancesExpected)
@@ -206,15 +206,15 @@ func TestAtlasInventoryReconcile(t *testing.T) {
 		t.Run(tcName, func(t *testing.T) {
 			inventory := &dbaas.MongoDBAtlasInventory{
 				TypeMeta: metav1.TypeMeta{
-					APIVersion: "dbaas.redhat.com/v1alpha1",
+					APIVersion: "dbaas.redhat.com/v1beta1",
 					Kind:       "MongoDBAtlasInventory",
 				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      fmt.Sprintf("inventory-%s", tcName),
 					Namespace: "dbaas-operator",
 				},
-				Spec: dbaasv1alpha1.DBaaSInventorySpec{
-					CredentialsRef: &dbaasv1alpha1.LocalObjectReference{
+				Spec: dbaasv1beta1.DBaaSInventorySpec{
+					CredentialsRef: &dbaasv1beta1.LocalObjectReference{
 						Name: fmt.Sprintf("secret-%s", tcName),
 					},
 				},
@@ -286,12 +286,12 @@ func TestAtlasInventoryReconcile(t *testing.T) {
 				// Move on to next test case
 				return
 			}
-			instancesExpected := []dbaasv1alpha1.Instance{}
+			instancesExpected := []dbaasv1beta1.DatabaseService{}
 			dataExpected, err := ioutil.ReadFile("../../../test/e2e/data/atlasinventoryexpected.json")
 			assert.NoError(t, err)
 			err = json.Unmarshal(dataExpected, &instancesExpected)
 			assert.NoError(t, err)
-			assert.True(t, reflect.DeepEqual(instancesExpected, inventoryUpdated.Status.Instances))
+			assert.True(t, reflect.DeepEqual(instancesExpected, inventoryUpdated.Status.DatabaseServices))
 		})
 	}
 }

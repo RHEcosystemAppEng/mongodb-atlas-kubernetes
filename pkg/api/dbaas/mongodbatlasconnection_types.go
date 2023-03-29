@@ -14,7 +14,7 @@ limitations under the License.
 package dbaas
 
 import (
-	dbaasv1alpha1 "github.com/RHEcosystemAppEng/dbaas-operator/api/v1alpha1"
+	dbaasv1beta1 "github.com/RHEcosystemAppEng/dbaas-operator/api/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -32,10 +32,11 @@ const (
 	HostKey                         = "host"
 	SrvKey                          = "srv"
 	ProviderKey                     = "provider"
-	Provider                        = "Red Hat DBaaS / MongoDB Atlas"
+	Provider                        = "OpenShift Datase Access / MongoDB Atlas"
 	ServiceBindingTypeKey           = "type"
 	ServiceBindingType              = "mongodb"
 	DefaultDatabase                 = "admin"
+	DefaultCloudProvider            = "AWS"
 )
 
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
@@ -44,15 +45,15 @@ const (
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +groupName:=dbaas.redhat.com
-// +versionName:=v1alpha1
+// +versionName:=v1beta1
 
 // MongoDBAtlasConnection is the Schema for the MongoDBAtlasConnections API
 type MongoDBAtlasConnection struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   dbaasv1alpha1.DBaaSConnectionSpec   `json:"spec,omitempty"`
-	Status dbaasv1alpha1.DBaaSConnectionStatus `json:"status,omitempty"`
+	Spec   dbaasv1beta1.DBaaSConnectionSpec   `json:"spec,omitempty"`
+	Status dbaasv1beta1.DBaaSConnectionStatus `json:"status,omitempty"`
 }
 
 //+kubebuilder:object:root=true

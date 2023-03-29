@@ -46,7 +46,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
-	dbaasv1alpha1 "github.com/RHEcosystemAppEng/dbaas-operator/api/v1alpha1"
+	dbaasv1beta1 "github.com/RHEcosystemAppEng/dbaas-operator/api/v1beta1"
 
 	dbaas "github.com/mongodb/mongodb-atlas-kubernetes/pkg/api/dbaas"
 	mdbv1 "github.com/mongodb/mongodb-atlas-kubernetes/pkg/api/v1"
@@ -75,7 +75,7 @@ func init() {
 
 	utilruntime.Must(dbaas.AddToScheme(scheme))
 
-	utilruntime.Must(dbaasv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(dbaasv1beta1.AddToScheme(scheme))
 
 	// +kubebuilder:scaffold:scheme
 }

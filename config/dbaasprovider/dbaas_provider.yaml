@@ -1,4 +1,4 @@
-apiVersion: dbaas.redhat.com/v1alpha1
+apiVersion: dbaas.redhat.com/v1beta1
 kind: DBaaSProvider
 metadata:
   name: mongodb-atlas-registration
@@ -6,8 +6,9 @@ metadata:
     related-to: dbaas-operator
     type: dbaas-provider-registration
 spec:
+  groupVersion: dbaas.redhat.com/v1beta1
   provider:
-    name: Red Hat DBaaS / MongoDB Atlas
+    name: OpenShift Datase Access / MongoDB Atlas
     displayName: MongoDB Atlas Cloud Database Service
     displayDescription: Cloud-hosted MongoDB service on AWS, Azure and Google Cloud
     icon:
@@ -35,32 +36,25 @@ spec:
       type: maskedstring
       required: true
       helpText: You can find the Private API Key from the API Keys tab on the Organization Access Manager page from your MongoDB account home page.
-  instanceParameterSpecs:
-    - name: clusterName
-      displayName: Cluster Name
-      type: string
-      required: true
-    - name: ProjectName
-      displayName: Atlas Project Name
-      type: string
-      required: true
-    - name: clusterType
-      displayName: Cluster Type
-      type: string
-      required: false
-      defaultValue: Shared
-    - name: providerName
+  provisioningParameters:
+    cloudProvider:
+      conditionalData:
+      - defaultValue: AWS
+        dependencies:
+        - field: plan
+          value: FREETRIAL
+        options:
+        - displayValue: AWS
+          value: AWS
       displayName: Cloud Provider
-      type: string
-      required: false
-      defaultValue: AWS
-    - name: regionName
-      displayName: Cloud Region
-      type: string
-      required: false
-      defaultValue: US_EAST_1
-    - name: instanceSizeName
-      displayName: Cluster Size Name
-      type: string
-      required: false
-      defaultValue: M0
+    name:
+      displayName: Cluster Name
+    plan:
+      conditionalData:
+      - defaultValue: FREETRIAL
+        options:
+        - displayValue: Free trial
+          value: FREETRIAL
+      displayName: Hosting plan
+    teamProject:
+      displayName: Atlas Project Name
